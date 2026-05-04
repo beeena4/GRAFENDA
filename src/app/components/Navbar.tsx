@@ -26,10 +26,12 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">G</span>
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
+            <img 
+              src="/logo.png" 
+              alt="Logo Grafenda" 
+              className="w-8 h-8 object-contain" 
+            />
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-500 bg-clip-text text-transparent">
               Grafenda
             </span>
           </Link>
@@ -145,7 +147,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/register"
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-shadow"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-500 text-white rounded-lg hover:shadow-lg transition-shadow"
                 >
                   Daftar
                 </Link>
