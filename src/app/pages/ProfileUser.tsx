@@ -1,10 +1,22 @@
-import { Link, useNavigate } from "react-router";
-import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router";
+import { useState, useEffect } from "react";
+import { ordersData } from "./mockData";
 import { User, Mail, Phone, MapPin, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft } from "lucide-react";
 
 export function ProfileUser() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'settings'>('overview');
+  const location = useLocation();
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'settings'>(
+    location.state?.activeTab || 'overview'
+  );
+
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
     name: 'Rina Wijaya',
@@ -14,41 +26,7 @@ export function ProfileUser() {
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
   });
 
-  const orders = [
-    {
-      id: 1,
-      orderId: "GRF-2026-04-001",
-      service: "Desain Logo Profesional",
-      seller: "Design Studio",
-      status: "Selesai",
-      statusColor: "bg-green-100 text-green-700",
-      amount: "Rp 225.000",
-      date: "18 Apr 2026",
-      canReview: true,
-    },
-    {
-      id: 2,
-      orderId: "GRF-2026-04-002",
-      service: "Video Editing YouTube",
-      seller: "Creative Media",
-      status: "Dalam Proses",
-      statusColor: "bg-blue-100 text-blue-700",
-      amount: "Rp 200.000",
-      date: "17 Apr 2026",
-      canReview: false,
-    },
-    {
-      id: 3,
-      orderId: "GRF-2026-04-003",
-      service: "Copywriting Landing Page",
-      seller: "WordCraft",
-      status: "Menunggu Review",
-      statusColor: "bg-yellow-100 text-yellow-700",
-      amount: "Rp 100.000",
-      date: "15 Apr 2026",
-      canReview: true,
-    },
-  ];
+  const orders = ordersData;
 
   const stats = [
     { label: "Total Pesanan", value: "12", icon: ShoppingCart },
@@ -56,14 +34,24 @@ export function ProfileUser() {
     { label: "Dalam Proses", value: "4", icon: Clock },
   ];
 
+  const getBadgeColor = (status: string) => {
+    if (status === "Selesai") return "bg-green-100 text-green-700";
+    if (status === "Menunggu Review") return "bg-yellow-100 text-yellow-700";
+    return "bg-blue-100 text-blue-700"; // Untuk "Dalam Proses" atau lainnya
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
         return (
           <div className="space-y-6">
+            {/* Stats Cards */}
             <div className="grid md:grid-cols-3 gap-6">
               {stats.map((stat, idx) => (
-                <div key={idx} className="bg-slate-50 rounded-xl p-6">
+                <div 
+                  key={idx} 
+                  className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm hover:border-blue-300 transition-colors"
+                >
                   <div className="flex items-center justify-between mb-3">
                     <stat.icon className="w-8 h-8 text-blue-600" />
                   </div>
@@ -73,7 +61,8 @@ export function ProfileUser() {
               ))}
             </div>
 
-            <div className="bg-slate-50 rounded-xl p-6">
+            {/* Kotak Informasi Profil */}
+            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
               <h3 className="font-bold text-slate-800 mb-4">Informasi Profil</h3>
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
@@ -113,14 +102,17 @@ export function ProfileUser() {
         return (
           <div className="space-y-4">
             {orders.map((order) => (
-              <div key={order.id} className="bg-slate-50 rounded-xl p-6">
+              <div 
+                key={order.id} 
+                className="bg-slate-50 rounded-xl p-6 border border-slate-100 hover:border-blue-300 hover:shadow-md hover:bg-white transition-all duration-300"
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <p className="text-xs text-slate-500 mb-1">{order.orderId}</p>
                     <h3 className="font-bold text-slate-800 mb-1">{order.service}</h3>
                     <p className="text-sm text-slate-600">Seller: {order.seller}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.statusColor}`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor(order.status)}`}>
                     {order.status}
                   </span>
                 </div>
@@ -131,15 +123,16 @@ export function ProfileUser() {
                   </div>
                   <div className="flex space-x-2">
                     <Link
-                      to={`/service/${order.id}`}
-                      className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
+                      to={`/order-detail/${order.id}`}
+                      className="px-4 py-2 bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 rounded-lg transition-colors text-sm"
                     >
                       Detail
                     </Link>
-                    {order.canReview && (
+                    
+                    {(order.status === "Selesai" || order.status === "Menunggu Review") && (
                       <Link
                         to={`/order/${order.id}/review`}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm shadow-sm"
                       >
                         Beri Review
                       </Link>
@@ -176,7 +169,6 @@ export function ProfileUser() {
                   className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
                 <input
@@ -187,7 +179,6 @@ export function ProfileUser() {
                   className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Nomor Telepon</label>
                 <input
@@ -198,7 +189,6 @@ export function ProfileUser() {
                   className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Lokasi</label>
                 <input
@@ -266,7 +256,17 @@ export function ProfileUser() {
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-sm mb-6">
           <div className="border-b border-slate-200">
-            <div className="flex">
+            <div className="flex relative"> 
+              
+              {/* INDIKATOR GESER */}
+              <div 
+                className="absolute bottom-0 h-0.5 bg-blue-600 transition-all duration-300 ease-in-out"
+                style={{ 
+                  width: '33.33%', 
+                  left: activeTab === 'overview' ? '0%' : activeTab === 'orders' ? '33.33%' : '66.66%' 
+                }}
+              />
+              
               {[
                 { id: 'overview', label: 'Overview' },
                 { id: 'orders', label: 'My Orders' },
@@ -275,9 +275,9 @@ export function ProfileUser() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 py-4 px-6 text-center transition-colors ${
+                  className={`flex-1 py-4 px-6 text-center transition-colors relative z-10 ${
                     activeTab === tab.id
-                      ? 'border-b-2 border-blue-600 text-blue-600 font-medium'
+                      ? 'text-blue-600 font-medium'
                       : 'text-slate-600 hover:text-slate-800'
                   }`}
                 >

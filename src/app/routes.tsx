@@ -20,6 +20,7 @@ import { Inbox } from "./pages/Inbox";
 import { Reviews } from "./pages/Reviews";
 import { WriteReview } from "./pages/WriteReview";
 import { ManageService } from "./pages/ManageService";
+import { OrderDetail } from './pages/OrderDetail';
 
 export const router = createBrowserRouter([
   {
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
       { path: "order/:id/review", Component: WriteReview },
       { path: "seller/service/add", Component: ManageService },
       { path: "seller/service/:id/edit", Component: ManageService },
+      { path: "order-detail/:id", Component: OrderDetail }
     ],
   },
 ]);
