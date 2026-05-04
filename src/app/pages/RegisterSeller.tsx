@@ -134,7 +134,7 @@ export function RegisterSeller() {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-3 rounded-lg hover:shadow-lg transition-shadow font-medium"
+              className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-3 rounded-lg hover:opacity-90 transition-all font-medium"
             >
               Daftar sebagai Freelancer
             </button>
