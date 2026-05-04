@@ -138,7 +138,7 @@ export function Home() {
       {/* Why Choose Us */}
       <section className="py-16 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Kenapa Memilih Grafenda?</h2>
+          <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Mengapa Memilih Kami?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {reasons.map((reason, idx) => (
               <div key={idx} className="text-center p-6">
@@ -156,7 +156,7 @@ export function Home() {
       {/* How to Order */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Cara Memesan</h2>
+          <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Cara Kerja Grafenda</h2>
           <div className="grid md:grid-cols-4 gap-6">
             {steps.map((step, idx) => (
               <div key={idx} className="relative">
