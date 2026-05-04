@@ -5,11 +5,6 @@ import { Search as SearchIcon, Sparkles, Star, SlidersHorizontal, ArrowLeft } fr
 export function Search() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({
-    priceRating: 'all',
-    category: 'all',
-    duration: 'all',
-  });
 
   const popularSearches = [
     "Desain Logo",
@@ -65,42 +60,34 @@ export function Search() {
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Kembali ke Beranda</span>
-        </button>
 
-        {/* AI Search Bar */}
+        {/* Search */}
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
           <div className="flex items-center bg-slate-50 rounded-xl p-2">
             <div className="flex-1 flex items-center">
-              <Sparkles className="w-6 h-6 text-yellow-500 ml-4 mr-2" />
+              <Sparkles className="w-5 h-5 text-yellow-500 ml-3 mr-2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Coba: 'Desain logo modern untuk kafe' atau 'Edit video YouTube'"
-                className="flex-1 px-2 py-3 bg-transparent outline-none"
+                placeholder="Cari jasa..."
+                className="flex-1 px-2 py-2 bg-transparent outline-none text-sm"
               />
             </div>
-            <button className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-8 py-3 rounded-lg hover:shadow-lg transition-shadow flex items-center space-x-2">
-              <SearchIcon className="w-5 h-5" />
-              <span>Cari</span>
+            <button className="bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white px-6 py-2 rounded-lg flex items-center space-x-1 hover:opacity-90 transition-all">
+              <span className="text-sm">Cari</span>
             </button>
           </div>
 
-          {/* Popular Searches */}
+          {/* Popular */}
           <div className="mt-4">
-            <p className="text-sm text-slate-600 mb-2">Pencarian Populer:</p>
+            <p className="text-xs text-slate-500 mb-2 ml-1">Pencarian Populer:</p>
             <div className="flex flex-wrap gap-2">
               {popularSearches.map((term, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSearchQuery(term)}
-                  className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                  className="px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded-lg"
                 >
                   {term}
                 </button>
@@ -109,105 +96,108 @@ export function Search() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Filters Sidebar */}
+        {/* GRID UTAMA */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+          {/* FILTER */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm p-6 sticky top-24">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-slate-800">Filter</h3>
-                <SlidersHorizontal className="w-5 h-5 text-slate-400" />
+            <div className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 sticky top-24">
+
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold">Filter</h3>
+                <SlidersHorizontal className="w-4 h-4 text-slate-400" />
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4">
+
+                {/* Harga */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-3">Harga & Rating</label>
-                  <select
-                    value={filters.priceRating}
-                    onChange={(e) => setFilters({ ...filters, priceRating: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  >
-                    <option value="all">Semua</option>
-                    <option value="low-price">Harga Terendah</option>
-                    <option value="high-price">Harga Tertinggi</option>
-                    <option value="high-rating">Rating Tertinggi</option>
+                  <p className="text-xs text-slate-500 mb-1">Harga</p>
+                  <div className="flex gap-2">
+                    <input type="number" placeholder="Min"
+                      className="w-full px-2 py-1 text-sm border rounded-lg" />
+                    <input type="number" placeholder="Max"
+                      className="w-full px-2 py-1 text-sm border rounded-lg" />
+                  </div>
+                </div>
+
+                {/* Kategori */}
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Kategori</p>
+                  <select className="w-full px-2 py-1 text-sm border rounded-lg">
+                    <option>Semua</option>
+                    <option>Desain Grafis</option>
+                    <option>Audio & Video</option>
+                    <option>Penulisan</option>
                   </select>
                 </div>
 
+                {/* Durasi */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-3">Kategori</label>
-                  <select
-                    value={filters.category}
-                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  >
-                    <option value="all">Semua Kategori</option>
-                    <option value="design">Desain Grafis</option>
-                    <option value="video">Audio & Video</option>
-                    <option value="writing">Penulisan</option>
+                  <p className="text-xs text-slate-500 mb-1">Durasi</p>
+                  <select className="w-full px-2 py-1 text-sm border rounded-lg">
+                    <option>Semua</option>
+                    <option>1-3 Hari</option>
+                    <option>4-7 Hari</option>
+                    <option>7 Hari</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-3">Durasi Pengerjaan</label>
-                  <select
-                    value={filters.duration}
-                    onChange={(e) => setFilters({ ...filters, duration: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  >
-                    <option value="all">Semua Durasi</option>
-                    <option value="1-3">1-3 Hari</option>
-                    <option value="4-7">4-7 Hari</option>
-                    <option value="7+">Lebih dari 7 Hari</option>
-                  </select>
-                </div>
-
-                <button className="w-full px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
-                  Reset Filter
+                <button className="w-full py-2 text-xs bg-slate-100 rounded-lg">
+                  Reset
                 </button>
+
               </div>
             </div>
           </div>
 
-          {/* Results */}
+          {/* RESULTS */}
           <div className="lg:col-span-3">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-slate-600">
-                Menampilkan <span className="font-semibold text-slate-800">{services.length}</span> hasil
-              </p>
-            </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <p className="text-sm text-slate-600 mb-4">
+              Menampilkan <span className="font-semibold">{services.length}</span> hasil
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {services.map((service) => (
                 <Link
                   key={service.id}
                   to={`/service/${service.id}`}
-                  className="group bg-white rounded-2xl overflow-hidden border border-slate-200 hover:shadow-xl transition-shadow"
+                  className="bg-white rounded-2xl border hover:shadow-lg transition"
                 >
-                  <div className="aspect-video overflow-hidden">
+                  <div className="aspect-video overflow-hidden rounded-t-2xl">
                     <img
                       src={service.image}
                       alt={service.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="p-5">
-                    <div className="text-xs text-blue-600 mb-2">{service.category}</div>
-                    <h3 className="font-semibold text-slate-800 mb-2 line-clamp-2">{service.title}</h3>
-                    <p className="text-sm text-slate-600 mb-3">{service.seller}</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-semibold text-slate-800">{service.rating}</span>
-                        <span className="text-slate-500 text-sm">({service.reviews})</span>
+
+                  <div className="p-4">
+                    <p className="text-xs text-blue-600 mb-1">{service.category}</p>
+                    <h3 className="text-sm font-semibold line-clamp-2 mb-2">
+                      {service.title}
+                    </h3>
+
+                    <p className="text-xs text-slate-500 mb-2">{service.seller}</p>
+
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center text-xs">
+                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400 mr-1" />
+                        {service.rating}
                       </div>
-                      <span className="font-bold text-blue-600">{service.price}</span>
+                      <span className="text-sm font-bold text-blue-600">
+                        {service.price}
+                      </span>
                     </div>
                   </div>
                 </Link>
               ))}
             </div>
+
           </div>
         </div>
+
       </div>
     </div>
   );
