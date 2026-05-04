@@ -6,8 +6,8 @@ export function Home() {
 
   const categories = [
     { icon: Palette, name: "Desain Grafis", count: "2,500+ jasa", color: "from-blue-500 to-blue-600" },
-    { icon: Video, name: "Audio & Video", count: "1,800+ jasa", color: "from-purple-500 to-purple-600" },
-    { icon: Pen, name: "Penulisan", count: "1,200+ jasa", color: "from-yellow-500 to-yellow-600" },
+    { icon: Video, name: "Audio & Video", count: "1,800+ jasa", color: "from-purple-500 to-purple-700" },
+    { icon: Pen, name: "Penulisan", count: "1,200+ jasa", color: "from-fuchsia-500 to-fuchsia-600" },
   ];
 
   const reasons = [
@@ -71,12 +71,12 @@ export function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-50 via-white to-yellow-50 py-20">
+      <section className="relative bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-5xl font-bold text-slate-800 mb-6">
               Platform Jasa Kreatif
-              <span className="block text-blue-600 mt-2">Mahasiswa Terbaik</span>
+              <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent">Mahasiswa Terbaik</span>
             </h1>
             <p className="text-xl text-slate-600 mb-8">
               Temukan freelancer berbakat untuk mewujudkan proyek kreatif Anda
@@ -96,7 +96,7 @@ export function Home() {
                 </div>
                 <button
                   onClick={() => navigate('/search')}
-                  className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-8 py-3 rounded-xl hover:shadow-lg transition-shadow flex items-center space-x-2"
+                  className="bg-gradient-to-r from-blue-600 to-purple-500 text-white px-8 py-3 rounded-xl hover:shadow-lg transition-shadow flex items-center space-x-2"
                 >
                   <Search className="w-5 h-5" />
                   <span>Cari</span>
@@ -161,7 +161,7 @@ export function Home() {
             {steps.map((step, idx) => (
               <div key={idx} className="relative">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-blue-500 text-white flex items-center justify-center text-2xl font-bold mb-4">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 via-violet-400 to-purple-400 text-white flex items-center justify-center text-2xl font-bold mb-4">
                     {step.num}
                   </div>
                   <h3 className="text-lg font-semibold mb-2 text-slate-800">{step.title}</h3>
@@ -177,13 +177,13 @@ export function Home() {
       </section>
 
       {/* Promo Banner */}
-      <section className="py-16 bg-gradient-to-r from-yellow-400 to-yellow-500">
+      <section className="py-16 bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-slate-800 mb-4">Promo Spesial Minggu Ini!</h2>
           <p className="text-lg text-slate-700 mb-6">Diskon hingga 30% untuk pengguna baru</p>
           <Link
             to="/register"
-            className="inline-block px-8 py-4 bg-white text-yellow-600 font-semibold rounded-xl hover:shadow-xl transition-shadow"
+            className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-3 px-6 rounded-lg hover:opacity-90 transition-all font-medium"
           >
             Daftar Sekarang
           </Link>
