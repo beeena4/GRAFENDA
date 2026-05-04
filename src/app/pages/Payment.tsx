@@ -138,7 +138,7 @@ export function Payment() {
 
               <button
                 onClick={handlePayment}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-3 rounded-xl hover:shadow-lg transition-shadow font-medium"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white py-3 rounded-xl hover:shadow-lg transition-shadow font-medium"
               >
                 Bayar Sekarang
               </button>
