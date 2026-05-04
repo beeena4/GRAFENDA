@@ -33,8 +33,7 @@ export function Register() {
                 Grafenda
               </span>
             </Link>
-            <h2 className="text-2xl font-bold text-slate-800">Daftar sebagai User</h2>
-            <p className="text-slate-600 mt-2">Mulai temukan jasa kreatif terbaik</p>
+            <p className="text-slate-600 mt-2">Mari Bergabung Bersama Kami</p>
           </div>
 
           <form onSubmit={handleRegister} className="space-y-4">
