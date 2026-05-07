@@ -25,7 +25,6 @@ export function DashboardAdmin() {
     { id: 'sellers', icon: UserCheck, label: 'Kelola Freelancer' },
     { id: 'transactions', icon: DollarSign, label: 'Transaksi' },
     { id: 'verification', icon: CheckCircle, label: 'Verifikasi Pembayaran' },
-    { id: 'reports', icon: FileText, label: 'Laporan' },
   ];
 
   const usersData = [
@@ -111,20 +110,30 @@ export function DashboardAdmin() {
         return (
           <>
             {/* Stats */}
-            <div className="grid md:grid-cols-4 gap-6 mb-8">
-              {stats.map((stat, idx) => (
-                <div key={idx} className="bg-white rounded-2xl shadow-sm p-6">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4`}>
-                    <stat.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="text-sm text-slate-600 mb-1">{stat.label}</p>
-                  <div className="flex items-end justify-between">
-                    <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
-                    <span className="text-green-600 text-sm font-medium">{stat.change}</span>
-                  </div>
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
+            {stats.map((stat, idx) => (
+              <div 
+                key={idx} 
+                className="bg-white rounded-2xl p-6 cursor-default
+                          border border-slate-100 shadow-sm
+                          hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 
+                          transition-all duration-300 transform hover:-translate-y-2"
+              >
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4 shadow-lg shadow-inner`}>
+                  <stat.icon className="w-6 h-6 text-white" />
                 </div>
-              ))}
-            </div>
+                
+                <p className="text-sm text-slate-500 mb-1 font-medium tracking-tight">{stat.label}</p>
+                
+                <div className="flex items-end justify-between">
+                  <p className="text-3xl font-bold text-slate-800 tracking-tight">{stat.value}</p>
+                  <span className="text-green-600 text-[11px] font-bold bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
+                    {stat.change}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
 
             {/* Pending Verifications */}
             <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
@@ -312,14 +321,6 @@ export function DashboardAdmin() {
                           <button className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700">
                             Detail
                           </button>
-                          {seller.status === 'Pending' && (
-                            <button className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700">
-                              Approve
-                            </button>
-                          )}
-                          <button className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700">
-                            Suspend
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -331,30 +332,32 @@ export function DashboardAdmin() {
         );
 
       case 'transactions':
-        return (
-          <div className="space-y-6">
-            <div className="grid md:grid-cols-4 gap-6">
-              <div className="bg-white rounded-2xl shadow-sm p-6">
-                <p className="text-sm text-slate-600 mb-2">Total Transaksi</p>
-                <p className="text-3xl font-bold text-slate-800">2,891</p>
-                <p className="text-sm text-green-600 mt-2">+15% bulan ini</p>
+      return (
+        <div className="space-y-8">
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              { label: "Total Transaksi", value: "2,891", change: "+15% bulan ini", trend: "up" },
+              { label: "Volume Transaksi", value: "Rp 145jt", change: "+23% bulan ini", trend: "up" },
+              { label: "Fee Platform", value: "Rp 14.5jt", change: "10% dari volume", trend: "neutral" },
+              { label: "Rata-rata Transaksi", value: "Rp 175K", change: "Per order", trend: "neutral" },
+            ].map((item, idx) => (
+              <div 
+                key={idx} 
+                className="bg-white rounded-2xl p-6 cursor-default
+                          border border-slate-100 shadow-sm
+                          hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 
+                          transition-all duration-300 transform hover:-translate-y-2"
+              >
+                <p className="text-sm text-slate-500 mb-2 font-medium">{item.label}</p>
+                <p className="text-3xl font-bold text-slate-800 tracking-tight">{item.value}</p>
+                <p className={`text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block ${
+                  item.trend === 'up' ? 'text-green-600 bg-green-50' : 'text-slate-500 bg-slate-50'
+                }`}>
+                  {item.change}
+                </p>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm p-6">
-                <p className="text-sm text-slate-600 mb-2">Volume Transaksi</p>
-                <p className="text-3xl font-bold text-slate-800">Rp 145jt</p>
-                <p className="text-sm text-green-600 mt-2">+23% bulan ini</p>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm p-6">
-                <p className="text-sm text-slate-600 mb-2">Fee Platform</p>
-                <p className="text-3xl font-bold text-slate-800">Rp 14.5jt</p>
-                <p className="text-sm text-slate-500 mt-2">10% dari volume</p>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm p-6">
-                <p className="text-sm text-slate-600 mb-2">Rata-rata Transaksi</p>
-                <p className="text-3xl font-bold text-slate-800">Rp 175K</p>
-                <p className="text-sm text-slate-500 mt-2">Per order</p>
-              </div>
-            </div>
+            ))}
+          </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <h3 className="text-xl font-bold text-slate-800 mb-6">Riwayat Transaksi</h3>
@@ -441,28 +444,6 @@ export function DashboardAdmin() {
             </div>
           </div>
         );
-
-      case 'reports':
-        return (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-6">Laporan</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="border border-slate-200 rounded-xl p-6">
-                <BarChart3 className="w-8 h-8 text-blue-600 mb-3" />
-                <h3 className="font-bold text-slate-800 mb-2">Laporan Pendapatan</h3>
-                <p className="text-slate-600">Grafik pendapatan bulanan dan tahunan</p>
-              </div>
-              <div className="border border-slate-200 rounded-xl p-6">
-                <TrendingUp className="w-8 h-8 text-green-600 mb-3" />
-                <h3 className="font-bold text-slate-800 mb-2">Statistik Platform</h3>
-                <p className="text-slate-600">Insight pertumbuhan pengguna dan transaksi</p>
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
     }
   };
 
@@ -482,22 +463,28 @@ export function DashboardAdmin() {
           <p className="text-sm text-slate-600 mt-2">Admin Panel</p>
         </div>
 
-        <nav className="p-4">
-          {sidebarMenus.map((menu) => (
-            <button
-              key={menu.id}
-              onClick={() => setActiveMenu(menu.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
-                activeMenu === menu.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <menu.icon className="w-5 h-5" />
-              <span>{menu.label}</span>
-            </button>
-          ))}
-        </nav>
+        <nav className="p-3 space-y-1">
+        {sidebarMenus.map((menu) => (
+          <button
+            key={menu.id}
+            onClick={() => setActiveMenu(menu.id)}
+            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
+              activeMenu === menu.id
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+            }`}
+          >
+            <menu.icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+              activeMenu === menu.id ? 'text-white' : 'group-hover:scale-110'
+            }`} />
+            <span className={`text-[13px] font-medium leading-tight whitespace-nowrap overflow-hidden ${
+              menu.label.length > 18 ? 'tracking-tighter' : 'tracking-tight'
+            }`}>
+              {menu.label}
+            </span>
+          </button>
+        ))}
+      </nav>
 
         <div className="absolute bottom-0 w-64 p-4 border-t border-slate-200">
           <button
