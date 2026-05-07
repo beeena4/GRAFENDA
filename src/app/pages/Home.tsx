@@ -76,15 +76,17 @@ export function Home() {
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-5xl font-bold text-slate-800 mb-6">
               Platform Jasa Kreatif
-              <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent">Mahasiswa Terbaik</span>
+             <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent bg-[length:200%_auto] transition-all duration-500 hover:bg-right cursor-default">
+              Mahasiswa Terbaik
+            </span>
             </h1>
             <p className="text-xl text-slate-600 mb-8">
               Temukan freelancer berbakat untuk mewujudkan proyek kreatif Anda
             </p>
 
             {/* AI Search */}
-            <div className="relative max-w-2xl mx-auto">
-              <div className="flex items-center bg-white rounded-2xl shadow-lg p-2">
+            <div className="relative max-w-2xl mx-auto group">
+             <div className="flex items-center bg-white rounded-2xl shadow-lg p-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-1xl hover:ring-4 hover:ring-blue-50/50">
                 <div className="flex-1 flex items-center">
                   <Sparkles className="w-6 h-6 text-yellow-500 ml-4 mr-2" />
                   <input
@@ -140,13 +142,17 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Mengapa Memilih Kami?</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            {reasons.map((reason, idx) => (
-              <div key={idx} className="text-center p-6">
-                <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
-                  <reason.icon className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-slate-800">{reason.title}</h3>
-                <p className="text-slate-600">{reason.desc}</p>
+          {reasons.map((reason, idx) => (
+              <div key={idx} className="group text-center p-6 cursor-default">
+               <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6 transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:-translate-y-2">
+                <reason.icon className="w-8 h-8 text-blue-600 transition-transform duration-300 group-hover:scale-110" />
+              </div>
+                <h3 className="text-xl font-semibold mb-2 text-slate-800 transition-all duration-300 group-hover:text-blue-600">
+                  {reason.title}
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  {reason.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -158,17 +164,25 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Cara Kerja Grafenda</h2>
           <div className="grid md:grid-cols-4 gap-6">
-            {steps.map((step, idx) => (
-              <div key={idx} className="relative">
+          {steps.map((step, idx) => (
+              <div key={idx} className="relative group"> {/* Tambah group di sini */}
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 via-violet-400 to-purple-400 text-white flex items-center justify-center text-2xl font-bold mb-4">
+                  {/* Angka dengan Hover Pop & Glow */}
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 via-violet-400 to-purple-400 text-white flex items-center justify-center text-2xl font-bold mb-4 transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] group-hover:brightness-110 cursor-default">
                     {step.num}
                   </div>
-                  <h3 className="text-lg font-semibold mb-2 text-slate-800">{step.title}</h3>
+                  
+                  {/* Judul dengan Hover Gradasi (Senada dengan Reasons) */}
+                  <h3 className="text-lg font-semibold mb-2 text-slate-800 transition-all duration-300 group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:to-purple-500 group-hover:bg-clip-text group-hover:text-transparent">
+                    {step.title}
+                  </h3>
+                  
                   <p className="text-slate-600 text-sm">{step.desc}</p>
                 </div>
+
+                {/* Panah Chevron dengan Hover geser */}
                 {idx < steps.length - 1 && (
-                  <ChevronRight className="hidden md:block absolute top-6 -right-4 w-6 h-6 text-slate-300" />
+                  <ChevronRight className="hidden md:block absolute top-6 -right-4 w-6 h-6 text-slate-300 transition-all duration-300 group-hover:translate-x-2 group-hover:text-indigo-400" />
                 )}
               </div>
             ))}
