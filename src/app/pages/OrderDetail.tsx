@@ -12,7 +12,6 @@ export function OrderDetail() {
     return <div className="p-10 text-center">Pesanan tidak ditemukan.</div>;
   }
   
-  // 1. Logika Penentuan Warna & Ikon berdasarkan Status
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "Selesai":
@@ -29,7 +28,7 @@ export function OrderDetail() {
           lightColor: "bg-yellow-50",
           textColor: "text-yellow-600",
           icon: <Star className="w-10 h-10 text-yellow-200" />,
-          step: 3 // Sudah selesai pengerjaan, tinggal review
+          step: 3
         };
       case "Dalam Proses":
       default:
@@ -48,7 +47,10 @@ export function OrderDetail() {
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-3xl mx-auto px-4">
-        <button onClick={() => navigate(-1)} className="flex items-center text-slate-600 hover:text-blue-600 mb-6 transition-colors">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center text-slate-600 hover:text-blue-600 mb-6 transition-colors cursor-pointer active:scale-95"
+        >
           <ArrowLeft className="w-5 h-5 mr-2" />
           <span>Kembali</span>
         </button>
@@ -63,6 +65,7 @@ export function OrderDetail() {
           </div>
 
           <div className="p-8 space-y-8">
+            {/* Progress Step */}
             <div className="relative flex justify-between">
               {[
                 { label: "Dibayar", step: 1 },
@@ -100,29 +103,33 @@ export function OrderDetail() {
               </div>
             </div>
 
-            {/* Tombol Berdasarkan Status */}
+            {/* Tombol Aksi */}
             <div className="space-y-3">
               <h3 className="font-bold text-slate-800 text-sm">Aksi Pesanan</h3>
               
               <div className="grid grid-cols-1 gap-3">
-                {/* Tombol Chat selalu muncul */}
-                <button className="flex items-center justify-center space-x-2 w-full py-3 border-2 border-blue-600 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all">
+                {/* Chat Seller */}
+                <button className="flex items-center justify-center space-x-2 w-full py-3 border-2 border-blue-600 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all cursor-pointer">
                   <MessageCircle className="w-5 h-5" />
                   <span>Chat Seller</span>
                 </button>
 
-                {/* Tombol Khusus Selesai / Menunggu Review */}
+                {/* Beri Review */}
                 {(order.status === "Selesai" || order.status === "Menunggu Review") && (
                   <button 
-                    onClick={() => navigate(`/order/${order.id}/review`)}
-                    className="flex items-center justify-center space-x-2 w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
+                    onClick={() => navigate(`/order/${order.id}/review`, { 
+                      state: { 
+                        from: 'order-detail',
+                        orderId: order.id 
+                      } 
+                    })}
+                    className="flex items-center justify-center space-x-2 w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all cursor-pointer active:scale-[0.98]"
                   >
                     <Star className="w-5 h-5" />
                     <span>Beri Review Sekarang</span>
                   </button>
                 )}
 
-                {/* Pesan Tambahan jika masih dalam proses */}
                 {order.status === "Dalam Proses" && (
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <p className="text-xs text-blue-700 leading-relaxed text-center italic">

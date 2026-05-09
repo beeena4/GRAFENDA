@@ -25,7 +25,7 @@ export function Payment() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors"
+          className="flex items-center text-slate-600 hover:text-blue-600 mb-6 transition-colors cursor-pointer active:scale-95"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Kembali</span>
@@ -40,12 +40,13 @@ export function Payment() {
               <h2 className="text-xl font-bold text-slate-800 mb-6">Pilih Metode Pembayaran</h2>
 
               <div className="space-y-3">
+                {/* E-Wallet */}
                 <button
                   onClick={() => setPaymentMethod('ewallet')}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
                     paymentMethod === 'ewallet'
                       ? 'border-blue-600 bg-blue-50'
-                      : 'border-slate-200 hover:border-slate-300'
+                      : 'border-slate-200 hover:border-blue-400 hover:shadow-sm hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center space-x-4">
@@ -60,12 +61,13 @@ export function Payment() {
                   {paymentMethod === 'ewallet' && <CheckCircle2 className="w-6 h-6 text-blue-600" />}
                 </button>
 
+                {/* Transfer Bank */}
                 <button
                   onClick={() => setPaymentMethod('transfer')}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
                     paymentMethod === 'transfer'
                       ? 'border-blue-600 bg-blue-50'
-                      : 'border-slate-200 hover:border-slate-300'
+                      : 'border-slate-200 hover:border-blue-400 hover:shadow-sm hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center space-x-4">
@@ -80,12 +82,13 @@ export function Payment() {
                   {paymentMethod === 'transfer' && <CheckCircle2 className="w-6 h-6 text-blue-600" />}
                 </button>
 
+                {/* Virtual Account */}
                 <button
                   onClick={() => setPaymentMethod('va')}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
                     paymentMethod === 'va'
                       ? 'border-blue-600 bg-blue-50'
-                      : 'border-slate-200 hover:border-slate-300'
+                      : 'border-slate-200 hover:border-blue-400 hover:shadow-sm hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center space-x-4">
@@ -136,9 +139,10 @@ export function Payment() {
                 </div>
               </div>
 
+              {/* Tombol Bayar Sekarang */}
               <button
                 onClick={handlePayment}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white py-3 rounded-xl hover:shadow-lg transition-shadow font-medium"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white py-3 rounded-xl hover:shadow-xl hover:opacity-95 hover:-translate-y-0.5 transition-all duration-200 font-medium cursor-pointer"
               >
                 Bayar Sekarang
               </button>

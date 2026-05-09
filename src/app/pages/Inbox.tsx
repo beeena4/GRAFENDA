@@ -58,7 +58,7 @@ export function Inbox() {
       <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors"
+          className="flex items-center text-slate-600 hover:text-blue-600 mb-6 transition-colors cursor-pointer active:scale-95"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Kembali</span>
@@ -76,7 +76,7 @@ export function Inbox() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari percakapan..."
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none hover:border-blue-400 hover:bg-white hover:shadow-sm transition-all duration-200 cursor-text"
               />
             </div>
           </div>
@@ -92,7 +92,7 @@ export function Inbox() {
                 <Link
                   key={conv.id}
                   to={`/chat/${conv.serviceId}`}
-                  className="flex items-center p-4 hover:bg-slate-50 transition-colors"
+                  className="flex items-center p-4 hover:bg-slate-100 transition-all duration-200 cursor-pointer"
                 >
                   <div className="relative">
                     <img
@@ -119,7 +119,7 @@ export function Inbox() {
                         {conv.unread}
                       </div>
                     )}
-                    <button className="p-1 hover:bg-slate-200 rounded-lg transition-colors">
+                    <button className="p-2 hover:bg-slate-200 rounded-lg transition-all duration-200 cursor-pointer">
                       <MoreVertical className="w-5 h-5 text-slate-400" />
                     </button>
                   </div>

@@ -73,7 +73,10 @@ export function Chat() {
         <div className="bg-white border-b border-slate-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-lg">
+              <button 
+                onClick={() => navigate(-1)} 
+                className="p-2 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+              >
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
               </button>
               <img src={seller.avatar} alt={seller.name} className="w-12 h-12 rounded-full" />
@@ -87,7 +90,7 @@ export function Chat() {
             </div>
             <button
               onClick={() => navigate(`/payment/${id}`)}
-              className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-shadow"
+              className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
             >
               <ShoppingCart className="w-5 h-5" />
               <span>Pesan</span>
@@ -105,7 +108,7 @@ export function Chat() {
               }`}
             >
               {msg.sender === 'auto' ? (
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm max-w-md text-center">
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm max-w-md text-center cursor-pointer hover:bg-yellow-100 hover:shadow-sm transition-all duration-200">
                   {msg.text}
                 </div>
               ) : (
@@ -115,10 +118,10 @@ export function Chat() {
                   )}
                   <div>
                     <div
-                      className={`px-4 py-3 rounded-2xl ${
+                      className={`px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md ${
                         msg.sender === 'user'
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
-                          : 'bg-white border border-slate-200 text-slate-800'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:opacity-90 hover:-translate-y-0.5'
+                          : 'bg-white border border-slate-200 text-slate-800 hover:bg-slate-50 hover:-translate-y-0.5'
                       }`}
                     >
                       <p>{msg.text}</p>
@@ -134,20 +137,25 @@ export function Chat() {
         {/* Input */}
         <div className="bg-white border-t border-slate-200 px-6 py-4">
           <div className="flex items-center space-x-3">
-            <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+            {/* Tombol File / Paperclip */}
+            <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
               <Paperclip className="w-5 h-5 text-slate-600" />
             </button>
+            
+            {/* Kolom Ketik Pesan */}
             <input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Ketik pesan..."
-              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none hover:border-blue-400 hover:bg-white hover:shadow-sm transition-all duration-200 cursor-text"
             />
+            
+            {/* Tombol Kirim / Send */}
             <button
               onClick={handleSend}
-              className="p-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-shadow"
+              className="p-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer"
             >
               <Send className="w-5 h-5" />
             </button>

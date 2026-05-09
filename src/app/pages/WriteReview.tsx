@@ -1,10 +1,12 @@
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
 import { useState } from "react";
 import { ArrowLeft, Star, Upload, X } from "lucide-react";
 
 export function WriteReview() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -18,18 +20,40 @@ export function WriteReview() {
     date: "18 Apr 2026",
   };
 
+  const handleBack = () => {
+    const from = location.state?.from;
+
+    if (from === 'order-detail') {
+      navigate(-1);
+    } 
+    else if (from === 'profile-orders') {
+      navigate('/profile/user', { state: { activeTab: 'orders' } });
+    } 
+    else if (from === 'dashboard') {
+      navigate(-1);
+    } 
+    else {
+      navigate('/dashboard/user');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) {
       alert('Silakan berikan rating terlebih dahulu');
       return;
     }
-    // Submit review logic here
-    navigate('/dashboard/user');
+    if (comment.length < 20) {
+      alert('Ulasan minimal 20 karakter');
+      return;
+    }
+
+    alert('Ulasan berhasil dikirim! Terima kasih.');
+    
+    navigate('/profile/user', { state: { activeTab: 'orders' } });
   };
 
   const handleImageUpload = () => {
-    // Simulate image upload
     const dummyImage = "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=300";
     if (images.length < 3) {
       setImages([...images, dummyImage]);
@@ -43,12 +67,13 @@ export function WriteReview() {
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        
         <button
-          onClick={() => navigate('/dashboard/user')}
-          className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors"
+          onClick={handleBack}
+          className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors cursor-pointer active:scale-95"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Kembali ke Dashboard</span>
+          <span>Kembali</span>
         </button>
 
         <div className="bg-white rounded-2xl shadow-sm p-8">
@@ -71,7 +96,7 @@ export function WriteReview() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Rating */}
+            {/* Rating, Comment, Images, Tips */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">
                 Berikan Rating <span className="text-red-500">*</span>
@@ -107,7 +132,7 @@ export function WriteReview() {
               </div>
             </div>
 
-            {/* Comment */}
+            {/* Comment Section */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">
                 Tulis Ulasan Anda
@@ -124,7 +149,7 @@ export function WriteReview() {
               </p>
             </div>
 
-            {/* Images */}
+            {/* Images Section */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">
                 Tambahkan Foto (Opsional)
@@ -173,11 +198,11 @@ export function WriteReview() {
               </ul>
             </div>
 
-            {/* Submit */}
+            {/* Buttons */}
             <div className="flex space-x-4 pt-4">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/user')}
+                onClick={handleBack}
                 className="flex-1 px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors font-medium"
               >
                 Batal
