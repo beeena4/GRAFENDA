@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import { ordersData } from "./mockData";
-import { User, Mail, Phone, MapPin, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft } from "lucide-react";
+import { User, Mail, Phone, MapPin, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft, X } from "lucide-react";
 
 export function ProfileUser() {
   const navigate = useNavigate();
@@ -18,6 +18,7 @@ export function ProfileUser() {
   }, [location.state]);
 
   const [isEditing, setIsEditing] = useState(false);
+  
   const [profile, setProfile] = useState({
     name: 'Rina Wijaya',
     email: 'rina.wijaya@email.com',
@@ -25,6 +26,8 @@ export function ProfileUser() {
     location: 'Jakarta, Indonesia',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
   });
+
+  const [draftProfile, setDraftProfile] = useState(profile);
 
   const orders = ordersData;
 
@@ -37,7 +40,21 @@ export function ProfileUser() {
   const getBadgeColor = (status: string) => {
     if (status === "Selesai") return "bg-green-100 text-green-700";
     if (status === "Menunggu Review") return "bg-yellow-100 text-yellow-700";
-    return "bg-blue-100 text-blue-700"; // Untuk "Dalam Proses" atau lainnya
+    return "bg-blue-100 text-blue-700";
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setDraftProfile(profile); 
+  };
+
+  const handleToggleEdit = () => {
+    if (isEditing) {
+      setProfile(draftProfile); 
+    } else {
+      setDraftProfile(profile);
+    }
+    setIsEditing(!isEditing);
   };
 
   const renderContent = () => {
@@ -132,6 +149,7 @@ export function ProfileUser() {
                     {(order.status === "Selesai" || order.status === "Menunggu Review") && (
                       <Link
                         to={`/order/${order.id}/review`}
+                        state={{ from: 'profile-orders' }}   
                         className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm shadow-sm"
                       >
                         Beri Review
@@ -149,13 +167,27 @@ export function ProfileUser() {
           <div className="bg-slate-50 rounded-xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-slate-800">Edit Profil</h3>
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                {isEditing ? <Save className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
-                <span>{isEditing ? 'Simpan' : 'Edit'}</span>
-              </button>
+              <div className="flex items-center space-x-3">
+                {/* Tombol Batal */}
+                {isEditing && (
+                  <button
+                    onClick={handleCancel}
+                    className="flex items-center space-x-2 px-4 py-2 bg-rose-100 text-rose-700 rounded-lg hover:bg-rose-200 transition-colors font-medium"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Batal</span>
+                  </button>
+                )}
+                
+                {/* Tombol Edit */}
+                <button
+                  onClick={handleToggleEdit}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  {isEditing ? <Save className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                  <span>{isEditing ? 'Simpan' : 'Edit'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -163,40 +195,40 @@ export function ProfileUser() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Nama Lengkap</label>
                 <input
                   type="text"
-                  value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  value={isEditing ? draftProfile.name : profile.name}
+                  onChange={(e) => setDraftProfile({ ...draftProfile, name: e.target.value })}
                   disabled={!isEditing}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
                 <input
                   type="email"
-                  value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                  value={isEditing ? draftProfile.email : profile.email}
+                  onChange={(e) => setDraftProfile({ ...draftProfile, email: e.target.value })}
                   disabled={!isEditing}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Nomor Telepon</label>
                 <input
                   type="tel"
-                  value={profile.phone}
-                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                  value={isEditing ? draftProfile.phone : profile.phone}
+                  onChange={(e) => setDraftProfile({ ...draftProfile, phone: e.target.value })}
                   disabled={!isEditing}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Lokasi</label>
                 <input
                   type="text"
-                  value={profile.location}
-                  onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                  value={isEditing ? draftProfile.location : profile.location}
+                  onChange={(e) => setDraftProfile({ ...draftProfile, location: e.target.value })}
                   disabled={!isEditing}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
                 />
               </div>
 
@@ -207,17 +239,17 @@ export function ProfileUser() {
                     <input
                       type="password"
                       placeholder="Password Lama"
-                      className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-4 py-3 border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
                     />
                     <input
                       type="password"
                       placeholder="Password Baru"
-                      className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-4 py-3 border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
                     />
                     <input
                       type="password"
                       placeholder="Konfirmasi Password Baru"
-                      className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-4 py-3 border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -239,7 +271,7 @@ export function ProfileUser() {
           className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Kembali ke Dashboard</span>
+          <span>Kembali</span>
         </button>
 
         {/* Profile Header */}
