@@ -233,7 +233,7 @@ export function WithdrawSaldo() {
               <button
                 type="submit"
                 disabled={!amount || parseInt(amount) < minWithdraw || parseInt(amount) > availableBalance}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-4 rounded-xl hover:shadow-lg transition-shadow font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white py-4 rounded-xl hover:shadow-lg transition-shadow font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Ajukan Penarikan
               </button>
