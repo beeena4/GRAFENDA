@@ -93,7 +93,7 @@ export function ProfileSeller() {
           <div className="space-y-6">
             <div className="grid md:grid-cols-4 gap-6">
               {stats.map((stat, idx) => (
-                <div key={idx} className="bg-slate-50 rounded-xl p-6">
+                <div key={idx} className="bg-slate-50 rounded-xl p-6 border border-slate-200 hover:border-blue-500 transition-colors">
                   <div className="flex items-center justify-between mb-3">
                     <stat.icon className="w-8 h-8 text-blue-600" />
                   </div>
@@ -157,7 +157,7 @@ export function ProfileSeller() {
               <h3 className="font-bold text-slate-800 mb-4">Jasa yang Ditawarkan</h3>
               <div className="space-y-4">
                 {services.map((service) => (
-                  <div key={service.id} className="bg-white rounded-xl p-4 border border-slate-200">
+                  <div key={service.id} className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md hover:border-blue-500 transition-colors">
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-semibold text-slate-800 mb-2">{service.title}</h4>
@@ -241,12 +241,12 @@ export function ProfileSeller() {
 
               <div className="grid md:grid-cols-3 gap-4">
                 {artStyles.map((style) => (
-                  <div key={style.id} className="relative group">
+                  <div key={style.id} className="relative group transition-all duration-300 hover:-translate-y-1">
                     <div className="aspect-square rounded-xl overflow-hidden border-2 border-slate-200 hover:border-blue-500 transition-colors">
                       <img
                         src={style.image}
                         alt={style.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent rounded-xl flex items-end p-4">
@@ -271,7 +271,10 @@ export function ProfileSeller() {
         return (
           <div className="space-y-4">
             {orders.map((order) => (
-              <div key={order.id} className="bg-slate-50 rounded-xl p-6">
+              <div
+              key={order.id}
+              className="bg-slate-50 rounded-xl p-6 transition-all duration-300 hover:-translate-y-1 border border-slate-200 hover:border-blue-500 hover:shadow-md"
+            >
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <p className="text-xs text-slate-500 mb-1">{order.orderId}</p>
@@ -405,7 +408,7 @@ export function ProfileSeller() {
         </button>
 
         {/* Profile Header */}
-        <div className="bg-white rounded-2xl shadow-sm p-8 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm p-8 mb-6 transition-all duration-300 hover:shadow-md">
           <div className="flex items-center space-x-6">
             <img src={profile.avatar} alt={profile.name} className="w-24 h-24 rounded-full border-4 border-blue-100" />
             <div>

@@ -8,7 +8,6 @@ import {
   User,
   Settings,
   LogOut,
-  TrendingUp,
   Clock,
   Repeat,
   ShoppingCart,
@@ -22,324 +21,466 @@ import {
 
 export function NewDashboardSeller() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'orders' | 'services' | 'earnings'>('orders');
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+
+  const [activeTab, setActiveTab] = useState<
+    "orders" | "services" | "earnings"
+  >("orders");
+
+  const [activeMenu, setActiveMenu] = useState("dashboard");
 
   const stats = [
     {
-      label: 'Total Pendapatan',
-      value: 'Rp 5.430K',
-      subtext: '+Rp 850K pending',
+      label: "Total Pendapatan",
+      value: "Rp 5.430K",
+      subtext: "+Rp 850K pending",
       icon: DollarSign,
-      color: 'from-blue-500 to-blue-600',
+      bg: "bg-blue-600",
     },
     {
-      label: 'Order Aktif',
-      value: '5',
-      subtext: '47 selesai',
+      label: "Order Aktif",
+      value: "5",
+      subtext: "47 selesai",
       icon: ShoppingCart,
-      color: 'from-orange-500 to-orange-600',
+      bg: "bg-orange-500",
     },
     {
-      label: 'Waktu Respon',
-      value: '< 2 jam',
-      subtext: 'Rata-rata',
+      label: "Waktu Respon",
+      value: "< 2 jam",
+      subtext: "Rata-rata",
       icon: Clock,
-      color: 'from-green-500 to-green-600',
+      bg: "bg-green-500",
     },
     {
-      label: 'Repeat Order',
-      value: '23',
-      subtext: 'Customer',
+      label: "Repeat Order",
+      value: "23",
+      subtext: "Customer",
       icon: Repeat,
-      color: 'from-purple-500 to-purple-600',
+      bg: "bg-purple-500",
     },
   ];
 
   const activeOrders = [
     {
       id: 1,
-      title: 'Desain Logo Profesional',
-      buyer: 'Rina Marlina',
-      date: '2026-04-18',
-      deadline: '2026-04-20',
-      amount: 'Rp 150.000',
-      status: 'Menunggu Konfirmasi',
-      statusColor: 'bg-yellow-100 text-yellow-700',
-      actions: ['accept', 'reject'],
+      title: "Desain Logo Profesional",
+      buyer: "Rina Marlina",
+      date: "2026-04-18",
+      deadline: "2026-04-20",
+      amount: "Rp 150.000",
+      status: "Menunggu Konfirmasi",
+      statusColor: "bg-yellow-100 text-yellow-700",
+      actions: ["accept", "reject"],
     },
     {
       id: 2,
-      title: 'Video Editing Youtube',
-      buyer: 'Andi Wijaya',
-      date: '2026-04-17',
-      deadline: '2026-04-22',
-      amount: 'Rp 200.000',
-      status: 'Dalam Pengerjaan',
-      statusColor: 'bg-blue-100 text-blue-700',
-      actions: ['upload'],
+      title: "Video Editing Youtube",
+      buyer: "Andi Wijaya",
+      date: "2026-04-17",
+      deadline: "2026-04-22",
+      amount: "Rp 200.000",
+      status: "Dalam Pengerjaan",
+      statusColor: "bg-blue-100 text-blue-700",
+      actions: ["upload"],
     },
     {
       id: 3,
-      title: 'Ilustrasi Digital Custom',
-      buyer: 'Siti Nurhaliza',
-      date: '2026-04-16',
-      deadline: '2026-04-21',
-      amount: 'Rp 250.000',
-      status: 'Revisi',
-      statusColor: 'bg-orange-100 text-orange-700',
-      actions: ['revision'],
+      title: "Ilustrasi Digital Custom",
+      buyer: "Siti Nurhaliza",
+      date: "2026-04-16",
+      deadline: "2026-04-21",
+      amount: "Rp 250.000",
+      status: "Revisi",
+      statusColor: "bg-orange-100 text-orange-700",
+      actions: ["revision"],
     },
   ];
 
   const myServices = [
     {
       id: 1,
-      title: 'Desain Logo Profesional untuk Brand Anda',
-      image: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400',
-      price: 'Rp 150K',
+      title: "Desain Logo Profesional untuk Brand Anda",
+      image:
+        "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400",
+      price: "Rp 150K",
       orders: 45,
       rating: 4.9,
     },
     {
       id: 2,
-      title: 'Desain Digital Custom Tema Apapun',
-      image: 'https://images.unsplash.com/photo-1634986666676-ec8fd927c23d?w=400',
-      price: 'Rp 200K',
+      title: "Desain Digital Custom Tema Apapun",
+      image:
+        "https://images.unsplash.com/photo-1634986666676-ec8fd927c23d?w=400",
+      price: "Rp 200K",
       orders: 32,
       rating: 5.0,
     },
     {
       id: 3,
-      title: 'Desain & Ilustrasi Social Media Feeds (any)',
-      image: 'https://images.unsplash.com/photo-1611926653458-09294b3142bf?w=400',
-      price: 'Rp 175K',
+      title: "Desain & Ilustrasi Social Media Feeds (any)",
+      image:
+        "https://images.unsplash.com/photo-1611926653458-09294b3142bf?w=400",
+      price: "Rp 175K",
       orders: 28,
       rating: 4.8,
     },
   ];
 
   const earnings = [
-    { date: '18 Apr 2026', description: 'Logo Design - Rina M.', amount: 150000, status: 'Completed' },
-    { date: '17 Apr 2026', description: 'Video Editing - Andi W.', amount: 200000, status: 'Pending' },
-    { date: '16 Apr 2026', description: 'Illustration - Siti N.', amount: 250000, status: 'Pending' },
-    { date: '15 Apr 2026', description: 'Logo Design - Budi S.', amount: 150000, status: 'Completed' },
-    { date: '14 Apr 2026', description: 'Social Media - Dian P.', amount: 175000, status: 'Completed' },
+    {
+      date: "18 Apr 2026",
+      description: "Logo Design - Rina M.",
+      amount: 150000,
+      status: "Completed",
+    },
+    {
+      date: "17 Apr 2026",
+      description: "Video Editing - Andi W.",
+      amount: 200000,
+      status: "Pending",
+    },
+    {
+      date: "16 Apr 2026",
+      description: "Illustration - Siti N.",
+      amount: 250000,
+      status: "Pending",
+    },
+    {
+      date: "15 Apr 2026",
+      description: "Logo Design - Budi S.",
+      amount: 150000,
+      status: "Completed",
+    },
+    {
+      date: "14 Apr 2026",
+      description: "Social Media - Dian P.",
+      amount: 175000,
+      status: "Completed",
+    },
   ];
 
-  const totalEarnings = earnings.reduce((sum, item) => sum + item.amount, 0);
-  const completedEarnings = earnings.filter(e => e.status === 'Completed').reduce((sum, item) => sum + item.amount, 0);
+  const totalEarnings = earnings.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
+
+  const completedEarnings = earnings
+    .filter((e) => e.status === "Completed")
+    .reduce((sum, item) => sum + item.amount, 0);
+
   const pendingEarnings = totalEarnings - completedEarnings;
 
   const sidebarMenus = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'orders', icon: ShoppingCart, label: 'Manajemen Order' },
-    { id: 'services', icon: Package, label: 'Pekerjaan Saya' },
-    { id: 'earnings', icon: DollarSign, label: 'Pendapatan' },
-    { id: 'chat', icon: MessageCircle, label: 'Chat' },
-    { id: 'profile', icon: User, label: 'Profil' },
+    { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { id: "orders", icon: ShoppingCart, label: "Manajemen Order" },
+    { id: "services", icon: Package, label: "Pekerjaan Saya" },
+    { id: "earnings", icon: DollarSign, label: "Pendapatan" },
+    { id: "chat", icon: MessageCircle, label: "Chat" },
+    { id: "profile", icon: User, label: "Profil" },
   ];
 
   const handleMenuClick = (menuId: string) => {
     setActiveMenu(menuId);
-    if (menuId === 'orders') setActiveTab('orders');
-    if (menuId === 'services') setActiveTab('services');
-    if (menuId === 'earnings') setActiveTab('earnings');
-    if (menuId === 'chat') navigate('/inbox');
-    if (menuId === 'profile') navigate('/profile/seller');
+
+    if (menuId === "orders") setActiveTab("orders");
+    if (menuId === "services") setActiveTab("services");
+    if (menuId === "earnings") setActiveTab("earnings");
+
+    if (menuId === "chat") navigate("/inbox");
+    if (menuId === "profile") navigate("/profile/seller");
   };
 
   const handleLogout = () => {
-    navigate('/');
+    navigate("/");
   };
 
-  const renderContent = () => {
-    if (activeMenu === 'dashboard' || activeTab === 'orders') {
-      return (
-        <div className="space-y-6">
-          {activeOrders.map((order) => (
-            <div key={order.id} className="bg-white rounded-xl p-6 border border-slate-200">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-slate-800 mb-1">{order.title}</h3>
-                  <p className="text-sm text-slate-600">dari {order.buyer} • {order.date}</p>
-                  <p className="text-sm text-slate-500 mt-1">Deadline: {order.deadline}</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.statusColor}`}>
-                  {order.status}
-                </span>
+  const renderOrders = () => {
+    return (
+      <div className="space-y-5">
+        {activeOrders.map((order) => (
+          <div
+            key={order.id}
+            className="bg-white rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+          >
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="font-bold text-[18px] text-slate-800">
+                  {order.title}
+                </h3>
+
+                <p className="text-sm text-slate-500 mt-1">
+                  dari {order.buyer} • {order.date}
+                </p>
+
+                <p className="text-sm text-slate-400 mt-1">
+                  Deadline: {order.deadline}
+                </p>
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-                <span className="font-bold text-slate-800">{order.amount}</span>
-                <div className="flex space-x-2">
-                  {order.actions.includes('accept') && (
-                    <button className="flex items-center space-x-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Terima</span>
-                    </button>
-                  )}
-                  {order.actions.includes('reject') && (
-                    <button className="flex items-center space-x-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">
-                      <XCircle className="w-4 h-4" />
-                      <span>Tolak</span>
-                    </button>
-                  )}
-                  {order.actions.includes('upload') && (
-                    <button className="flex items-center space-x-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                      <Upload className="w-4 h-4" />
-                      <span>Upload Hasil</span>
-                    </button>
-                  )}
-                  {order.actions.includes('revision') && (
-                    <button className="flex items-center space-x-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm">
-                      <Upload className="w-4 h-4" />
-                      <span>Kirim Revisi</span>
-                    </button>
-                  )}
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ${order.statusColor}`}
+              >
+                {order.status}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+              <h4 className="font-bold text-slate-800">{order.amount}</h4>
+
+              <div className="flex items-center gap-2">
+                {order.actions.includes("accept") && (
+                  <button className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-xl transition">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Terima</span>
+                  </button>
+                )}
+
+                {order.actions.includes("reject") && (
+                  <button className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-xl transition">
+                    <XCircle className="w-4 h-4" />
+                    <span>Tolak</span>
+                  </button>
+                )}
+
+                {order.actions.includes("upload") && (
+                  <button className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-xl transition">
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Hasil</span>
+                  </button>
+                )}
+
+                {order.actions.includes("revision") && (
+                  <button className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-xl transition">
+                    <Upload className="w-4 h-4" />
+                    <span>Kirim Revisi</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderServices = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-slate-800">
+            Jasa Saya
+          </h2>
+
+          <Link
+            to="/seller/service/add"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Jasa</span>
+          </Link>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          {myServices.map((service) => (
+            <div
+              key={service.id}
+              className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            >
+              <img
+                src={service.image}
+                alt={service.title}
+                className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+              />
+
+              <div className="p-5">
+                <h3 className="font-semibold text-slate-800 line-clamp-2 mb-4">
+                  {service.title}
+                </h3>
+
+                <div className="flex items-center justify-between mb-4">
+                  <span className="font-bold text-blue-600">
+                    {service.price}
+                  </span>
+
+                  <div className="text-sm text-slate-500">
+                    ⭐ {service.rating}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Link
+                    to={`/seller/service/${service.id}/edit`}
+                    className="flex-1 flex items-center justify-center gap-2 border border-blue-600 text-blue-600 hover:bg-blue-50 py-2 rounded-xl transition"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit</span>
+                  </Link>
+
+                  <button className="w-11 h-11 flex items-center justify-center border border-red-500 text-red-500 hover:bg-red-50 rounded-xl transition">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
-      );
-    }
+      </div>
+    );
+  };
 
-    if (activeTab === 'services') {
-      return (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold text-slate-800">Jasa Saya</h3>
-            <Link to="/seller/service/add" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              <Plus className="w-4 h-4" />
-              <span>Tambah Jasa</span>
+  const renderEarnings = () => {
+    return (
+      <div className="space-y-6">
+        <div className="grid md:grid-cols-3 gap-5">
+          <div className="bg-blue-600 text-white rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <p className="text-sm opacity-80 mb-2">
+              Total Penghasilan
+            </p>
+
+            <h2 className="text-3xl font-bold">
+              Rp {totalEarnings.toLocaleString("id-ID")}
+            </h2>
+          </div>
+
+          <div className="bg-green-600 text-white rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <p className="text-sm opacity-80 mb-2">
+              Saldo Tersedia
+            </p>
+
+            <h2 className="text-3xl font-bold">
+              Rp {completedEarnings.toLocaleString("id-ID")}
+            </h2>
+
+            <Link
+              to="/withdraw"
+              className="inline-block mt-3 text-sm underline"
+            >
+              Tarik Saldo
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {myServices.map((service) => (
-              <div key={service.id} className="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
-                <div className="aspect-video overflow-hidden">
-                  <img src={service.image} alt={service.title} className="w-full h-full object-cover" />
+          <div className="bg-yellow-500 text-white rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <p className="text-sm opacity-80 mb-2">
+              Saldo Pending
+            </p>
+
+            <h2 className="text-3xl font-bold">
+              Rp {pendingEarnings.toLocaleString("id-ID")}
+            </h2>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <h3 className="text-xl font-bold text-slate-800 mb-6">
+            Riwayat Transaksi
+          </h3>
+
+          <div className="space-y-4">
+            {earnings.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-none"
+              >
+                <div>
+                  <p className="font-medium text-slate-800">
+                    {item.description}
+                  </p>
+
+                  <p className="text-sm text-slate-500">
+                    {item.date}
+                  </p>
                 </div>
-                <div className="p-4">
-                  <h4 className="font-semibold text-slate-800 mb-2 line-clamp-2">{service.title}</h4>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-bold text-blue-600">{service.price}</span>
-                    <div className="flex items-center space-x-2 text-sm text-slate-600">
-                      <span>{service.orders} orders</span>
-                      <span>⭐ {service.rating}</span>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Link
-                      to={`/seller/service/${service.id}/edit`}
-                      className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 text-sm"
-                    >
-                      <Edit className="w-4 h-4" />
-                      <span>Edit</span>
-                    </Link>
-                    <button className="flex items-center justify-center px-3 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+
+                <div className="text-right">
+                  <p className="font-bold text-slate-800">
+                    Rp {item.amount.toLocaleString("id-ID")}
+                  </p>
+
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full ${
+                      item.status === "Completed"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {item.status}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      );
-    }
+      </div>
+    );
+  };
 
-    if (activeTab === 'earnings') {
-      return (
-        <div className="space-y-6">
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
-              <p className="text-blue-100 mb-2">Total Penghasilan</p>
-              <p className="text-3xl font-bold">Rp {totalEarnings.toLocaleString('id-ID')}</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
-              <p className="text-green-100 mb-2">Saldo Tersedia</p>
-              <p className="text-3xl font-bold">Rp {completedEarnings.toLocaleString('id-ID')}</p>
-              <Link to="/withdraw" className="inline-block mt-3 text-sm text-green-100 hover:text-white">
-                Tarik Saldo →
-              </Link>
-            </div>
-            <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white">
-              <p className="text-yellow-100 mb-2">Saldo Pending</p>
-              <p className="text-3xl font-bold">Rp {pendingEarnings.toLocaleString('id-ID')}</p>
-            </div>
-          </div>
+  const renderContent = () => {
+    if (activeTab === "orders") return renderOrders();
+    if (activeTab === "services") return renderServices();
+    if (activeTab === "earnings") return renderEarnings();
 
-          <div className="bg-white rounded-xl p-6">
-            <h3 className="text-xl font-bold text-slate-800 mb-6">Riwayat Transaksi</h3>
-            <div className="space-y-3">
-              {earnings.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
-                  <div>
-                    <p className="font-medium text-slate-800">{item.description}</p>
-                    <p className="text-sm text-slate-500">{item.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-slate-800">Rp {item.amount.toLocaleString('id-ID')}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      item.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
+    return renderOrders();
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#f4f7fb] flex">
       {/* Sidebar */}
-      <div className="w-64 bg-gradient-to-b from-slate-800 to-slate-900 fixed h-full">
-        <div className="p-6 border-b border-slate-700">
-          <Link to="/" className="flex items-center space-x-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">G</span>
-            </div>
+      <aside className="w-[260px] bg-[#eef3fb] border-r border-slate-200 fixed h-screen flex flex-col">
+        {/* Logo */}
+        <div className="px-6 pt-6">
+          <Link to="/" className="flex items-center gap-3">
+           <img 
+              src="/logo.png" 
+              alt="Logo Grafenda" 
+              className="w-8 h-8 object-contain" 
+            />
+
             <div>
-              <span className="text-white text-xl font-bold">Grafenda</span>
-              <p className="text-slate-400 text-xs">Seller Panel</p>
+              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-500 bg-clip-text text-transparent">
+              Grafenda
+              </span>
+
+              <p className="text-xs text-slate-500">
+                Seller Panel
+              </p>
             </div>
           </Link>
+        </div>
 
-          <div className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg">
+        {/* Profile */}
+        <div className="px-5 mt-6">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-500 rounded-2xl p-3 flex items-center gap-3">
             <img
               src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100"
-              alt="Amanda Putri"
-              className="w-10 h-10 rounded-full"
+              alt="profile"
+              className="w-12 h-12 rounded-full object-cover"
             />
+
             <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-sm truncate">Amanda Putri</p>
-              <p className="text-slate-400 text-xs">@amandaputri</p>
+              <p className="text-white font-semibold text-sm truncate">
+                Design Studio
+              </p>
+
+              <p className="text-blue-100 text-xs">
+                @designstudio
+              </p>
             </div>
-            <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-xs font-bold text-slate-900">
+
+            <div className="w-6 h-6 rounded-full bg-yellow-400 text-slate-800 text-xs font-bold flex items-center justify-center">
               5
             </div>
           </div>
         </div>
 
-        <nav className="p-4">
+        {/* Menu */}
+        <nav className="mt-6 px-4 flex-1">
           {sidebarMenus.map((menu) => (
             <button
               key={menu.id}
               onClick={() => handleMenuClick(menu.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition text-sm font-medium ${
                 activeMenu === menu.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-700 hover:bg-white"
               }`}
             >
               <menu.icon className="w-5 h-5" />
@@ -348,81 +489,98 @@ export function NewDashboardSeller() {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 w-64 p-4 border-t border-slate-700">
-          <button className="w-full flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-700 rounded-lg transition-colors mb-2">
-            <Settings className="w-5 h-5" />
-            <span>Pengaturan</span>
-          </button>
+        {/* Bottom */}
+        <div className="p-4">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition"
           >
             <LogOut className="w-5 h-5" />
             <span>Keluar</span>
           </button>
         </div>
-      </div>
+      </aside>
 
-      {/* Main Content */}
-      <div className="ml-64 flex-1 p-8">
+      {/* Main */}
+      <main className="flex-1 ml-[260px] p-8">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Dashboard Freelancer</h1>
-          <p className="text-slate-600">Kelola jasa dan order Anda dengan mudah</p>
+          <h1 className="text-[34px] leading-tight font-bold text-slate-800">
+            Dashboard Freelancer
+          </h1>
+
+          <p className="text-slate-500 mt-1">
+            Kelola jasa dan order Anda dengan mudah
+          </p>
         </div>
 
         {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-5 mb-8">
           {stats.map((stat, idx) => (
-            <div key={idx} className="bg-white rounded-xl p-6 border border-slate-200">
-              <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4`}>
-                <stat.icon className="w-6 h-6 text-white" />
+            <div
+            key={idx}
+            className="bg-white border border-slate-200 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500 hover:shadow-lg cursor-pointer"
+            >
+              <div
+                className={`w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center mb-4`}
+              >
+                <stat.icon className="w-5 h-5 text-white" />
               </div>
-              <p className="text-sm text-slate-600 mb-1">{stat.label}</p>
-              <p className="text-2xl font-bold text-slate-800 mb-1">{stat.value}</p>
-              <p className="text-xs text-slate-500">{stat.subtext}</p>
+
+              <p className="text-sm text-slate-500 mb-1">
+                {stat.label}
+              </p>
+
+              <h3 className="text-2xl font-bold text-slate-800">
+                {stat.value}
+              </h3>
+
+              <p className="text-xs text-slate-400 mt-1">
+                {stat.subtext}
+              </p>
             </div>
           ))}
         </div>
 
         {/* Tabs */}
-        {activeMenu === 'dashboard' && (
-          <div className="bg-white rounded-xl p-1 mb-6 inline-flex border border-slate-200">
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`px-6 py-2 rounded-lg transition-colors ${
-                activeTab === 'orders'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              Manajemen Order
-            </button>
-            <button
-              onClick={() => setActiveTab('services')}
-              className={`px-6 py-2 rounded-lg transition-colors ${
-                activeTab === 'services'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              Pekerjaan Saya
-            </button>
-            <button
-              onClick={() => setActiveTab('earnings')}
-              className={`px-6 py-2 rounded-lg transition-colors ${
-                activeTab === 'earnings'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              Pendapatan
-            </button>
-          </div>
-        )}
+        <div className="inline-flex gap-7 bg-white border border-slate-200 rounded-2xl p-1 mb-6">
+          <button
+            onClick={() => setActiveTab("orders")}
+            className={`px-36 py-2 rounded-xl text-sm font-medium transition ${
+              activeTab === "orders"
+                ? "bg-blue-600 text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Manajemen Order
+          </button>
+
+          <button
+            onClick={() => setActiveTab("services")}
+            className={`px-36 py-2 rounded-xl text-sm font-medium transition ${
+              activeTab === "services"
+                ? "bg-blue-600 text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Pekerjaan Saya
+          </button>
+
+          <button
+            onClick={() => setActiveTab("earnings")}
+            className={`px-36 py-2 rounded-xl text-sm font-medium transition ${
+              activeTab === "earnings"
+                ? "bg-blue-600 text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Pendapatan
+          </button>
+        </div>
 
         {/* Content */}
         {renderContent()}
-      </div>
+      </main>
     </div>
   );
 }
