@@ -1,0 +1,32 @@
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T12:10:03.653Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T12:10:03.659Z"}
+{"level":"info","message":"SIGINT received, shutting down gracefully","service":"grafenda-backend","timestamp":"2026-05-11T12:12:48.472Z"}
+{"level":"info","message":"Process terminated","service":"grafenda-backend","timestamp":"2026-05-11T12:12:48.474Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T12:14:10.961Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T12:14:10.966Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T12:55:03.040Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T12:55:03.044Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T13:57:06.177Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T13:57:06.181Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T14:21:45.259Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T14:21:45.263Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T14:31:42.340Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T14:31:42.344Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T14:33:05.441Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T14:33:05.444Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T14:45:30.547Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T14:45:30.553Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T14:46:29.829Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T14:46:29.832Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T14:49:05.887Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T14:49:05.891Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-11T14:53:14.113Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T14:53:14.131Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-12T03:04:15.976Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-12T03:04:15.980Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-12T03:09:22.724Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-12T03:09:22.730Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-12T03:09:25.308Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-12T03:09:25.312Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-12T03:09:32.286Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-12T03:09:32.290Z"}
