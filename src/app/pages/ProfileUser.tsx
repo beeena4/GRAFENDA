@@ -1,15 +1,65 @@
 import { Link, useNavigate, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import { ordersData } from "./mockData";
-import { User, Mail, Phone, MapPin, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft, X } from "lucide-react";
+import { User, Mail, Phone, MapPin, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft, X, AlertCircle, CheckCircle, Lock } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { authAPI } from "../../services/api";
+
+interface ProfileState {
+  full_name: string;
+  email: string;
+  phone: string;
+  bio: string;
+  university: string;
+  skills: string;
+  avatar: string;
+}
+
+const initialProfile: ProfileState = {
+  full_name: '',
+  email: '',
+  phone: '',
+  bio: '',
+  university: '',
+  skills: '',
+  avatar: '',
+};
 
 export function ProfileUser() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, updateProfile, changePassword, isLoading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'settings'>(
     location.state?.activeTab || 'overview'
   );
+
+  const [profile, setProfile] = useState<ProfileState>(initialProfile);
+  const [draftProfile, setDraftProfile] = useState<ProfileState>(initialProfile);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+
+  const profileAvatar = avatarPreview || profile.avatar || 'https://via.placeholder.com/150?text=Avatar';
+  const profileName = profile.full_name || 'Pengguna';
+  const profileEmail = profile.email || 'Email tidak tersedia';
+
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // Load profile data on component mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
   useEffect(() => {
     if (location.state?.activeTab) {
@@ -17,18 +67,140 @@ export function ProfileUser() {
     }
   }, [location.state]);
 
-  const [isEditing, setIsEditing] = useState(false);
-  
-  const [profile, setProfile] = useState({
-    name: 'Rina Wijaya',
-    email: 'rina.wijaya@email.com',
-    phone: '+62 812-3456-7890',
-    location: 'Jakarta, Indonesia',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
-  });
+  useEffect(() => {
+    if (!avatarFile) {
+      setAvatarPreview(profile.avatar || '');
+    }
+  }, [profile.avatar, avatarFile]);
 
-  const [draftProfile, setDraftProfile] = useState(profile);
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarFile) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview, avatarFile]);
 
+  const loadProfile = async () => {
+    try {
+      setIsLoadingProfile(true);
+      const profileData = await authAPI.getProfile();
+      // Ensure all required fields exist
+      const normalizedProfile = {
+        full_name: profileData?.full_name || '',
+        email: profileData?.email || '',
+        phone: profileData?.phone || '',
+        bio: profileData?.bio || '',
+        university: profileData?.university || '',
+        skills: profileData?.skills || '',
+        avatar: profileData?.avatar || '',
+      };
+      setProfile(normalizedProfile);
+      setDraftProfile(normalizedProfile);
+    } catch (error: any) {
+      setErrorMessage('Gagal memuat profil: ' + error.message);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+      setDraftProfile({ ...draftProfile, avatar: file.name });
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      let updatedProfile: any;
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('full_name', draftProfile.full_name || '');
+        formData.append('phone', draftProfile.phone || '');
+        formData.append('bio', draftProfile.bio || '');
+        formData.append('skills', draftProfile.skills || '');
+        formData.append('avatar', avatarFile);
+
+        updatedProfile = await updateProfile(formData);
+      } else {
+        updatedProfile = await updateProfile(draftProfile);
+      }
+
+      if (updatedProfile) {
+        setProfile({
+          ...profile,
+          ...updatedProfile,
+          avatar: updatedProfile.avatar || avatarPreview || profile.avatar,
+        });
+        setDraftProfile({
+          ...draftProfile,
+          ...updatedProfile,
+          avatar: updatedProfile.avatar || avatarPreview || profile.avatar,
+        });
+      } else {
+        setProfile({ ...draftProfile, avatar: avatarPreview || profile.avatar });
+      }
+
+      setAvatarFile(null);
+      setIsEditing(false);
+      setSuccessMessage('Profil berhasil diperbarui');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Gagal memperbarui profil');
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      setPasswordError('Password baru dan konfirmasi tidak cocok');
+      return;
+    }
+
+    if (passwordData.new_password.length < 8) {
+      setPasswordError('Password baru minimal 8 karakter');
+      return;
+    }
+
+    try {
+      await changePassword(passwordData.current_password, passwordData.new_password);
+      setPasswordSuccess('Password berhasil diubah');
+      setPasswordData({
+        current_password: '',
+        new_password: '',
+        confirm_password: '',
+      });
+      setTimeout(() => setPasswordSuccess(''), 3000);
+    } catch (error: any) {
+      setPasswordError(error.message || 'Gagal mengubah password');
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setDraftProfile(profile);
+    setErrorMessage('');
+  };
+
+  const handleToggleEdit = () => {
+    if (isEditing) {
+      handleSaveProfile();
+    } else {
+      setDraftProfile(profile);
+      setIsEditing(true);
+    }
+  };
+
+  // Dummy orders data (should be replaced with API call)
   const orders = ordersData;
 
   const stats = [
@@ -41,20 +213,6 @@ export function ProfileUser() {
     if (status === "Selesai") return "bg-green-100 text-green-700";
     if (status === "Menunggu Review") return "bg-yellow-100 text-yellow-700";
     return "bg-blue-100 text-blue-700";
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setDraftProfile(profile); 
-  };
-
-  const handleToggleEdit = () => {
-    if (isEditing) {
-      setProfile(draftProfile); 
-    } else {
-      setDraftProfile(profile);
-    }
-    setIsEditing(!isEditing);
   };
 
   const renderContent = () => {
@@ -80,37 +238,160 @@ export function ProfileUser() {
 
             {/* Kotak Informasi Profil */}
             <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4">Informasi Profil</h3>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <User className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-600">Nama Lengkap</p>
-                    <p className="font-medium text-slate-800">{profile.name}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Mail className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-600">Email</p>
-                    <p className="font-medium text-slate-800">{profile.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Phone className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-600">Nomor Telepon</p>
-                    <p className="font-medium text-slate-800">{profile.phone}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <MapPin className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-600">Lokasi</p>
-                    <p className="font-medium text-slate-800">{profile.location}</p>
-                  </div>
-                </div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-800">Informasi Profil</h3>
+                <button
+                  onClick={handleToggleEdit}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
+                >
+                  {isEditing ? (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Simpan</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      <span>Edit</span>
+                    </>
+                  )}
+                </button>
               </div>
+
+              {/* Error/Success Messages */}
+              {errorMessage && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <span className="text-red-700 text-sm">{errorMessage}</span>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-green-700 text-sm">{successMessage}</span>
+                </div>
+              )}
+
+              {isLoadingProfile ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-slate-600">Memuat profil...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <User className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Nama Lengkap</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={draftProfile.full_name}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, full_name: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.full_name || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Mail className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Email</p>
+                      <p className="font-medium text-slate-800">{profile.email}</p>
+                      <p className="text-xs text-slate-500">Email tidak dapat diubah</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Phone className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Nomor Telepon</p>
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          value={draftProfile.phone || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, phone: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          placeholder="+62 xxx-xxxx-xxxx"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <User className="w-5 h-5 text-slate-400 mt-1" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Bio</p>
+                      {isEditing ? (
+                        <textarea
+                          value={draftProfile.bio || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, bio: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          rows={3}
+                          placeholder="Ceritakan tentang diri Anda..."
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.bio || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <User className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Universitas</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={draftProfile.university || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, university: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          placeholder="Nama universitas"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.university || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <User className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Keahlian</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={draftProfile.skills || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, skills: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          placeholder="Contoh: Design Grafis, Video Editing"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.skills || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isEditing && (
+                <div className="flex space-x-2 mt-4">
+                  <button
+                    onClick={handleCancel}
+                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -164,96 +445,276 @@ export function ProfileUser() {
 
       case 'settings':
         return (
-          <div className="bg-slate-50 rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-slate-800">Edit Profil</h3>
-              <div className="flex items-center space-x-3">
-                {/* Tombol Batal */}
-                {isEditing && (
-                  <button
-                    onClick={handleCancel}
-                    className="flex items-center space-x-2 px-4 py-2 bg-rose-100 text-rose-700 rounded-lg hover:bg-rose-200 transition-colors font-medium"
-                  >
-                    <X className="w-4 h-4" />
-                    <span>Batal</span>
-                  </button>
-                )}
-                
-                {/* Tombol Edit */}
+          <div className="space-y-6">
+            {/* Profile Edit Section */}
+            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-800">Edit Profil</h3>
                 <button
                   onClick={handleToggleEdit}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  disabled={isLoading}
+                  className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
                 >
-                  {isEditing ? <Save className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
-                  <span>{isEditing ? 'Simpan' : 'Edit'}</span>
+                  {isEditing ? (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Simpan</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      <span>Edit</span>
+                    </>
+                  )}
                 </button>
               </div>
-            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Nama Lengkap</label>
-                <input
-                  type="text"
-                  value={isEditing ? draftProfile.name : profile.name}
-                  onChange={(e) => setDraftProfile({ ...draftProfile, name: e.target.value })}
-                  disabled={!isEditing}
-                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={isEditing ? draftProfile.email : profile.email}
-                  onChange={(e) => setDraftProfile({ ...draftProfile, email: e.target.value })}
-                  disabled={!isEditing}
-                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Nomor Telepon</label>
-                <input
-                  type="tel"
-                  value={isEditing ? draftProfile.phone : profile.phone}
-                  onChange={(e) => setDraftProfile({ ...draftProfile, phone: e.target.value })}
-                  disabled={!isEditing}
-                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Lokasi</label>
-                <input
-                  type="text"
-                  value={isEditing ? draftProfile.location : profile.location}
-                  onChange={(e) => setDraftProfile({ ...draftProfile, location: e.target.value })}
-                  disabled={!isEditing}
-                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors disabled:bg-slate-100 disabled:border-slate-200 border-blue-400"
-                />
-              </div>
+              {/* Error/Success Messages */}
+              {errorMessage && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <span className="text-red-700 text-sm">{errorMessage}</span>
+                </div>
+              )}
 
-              {isEditing && (
-                <div className="pt-4 border-t border-slate-200">
-                  <h4 className="font-semibold text-slate-800 mb-3">Ubah Password</h4>
-                  <div className="space-y-3">
-                    <input
-                      type="password"
-                      placeholder="Password Lama"
-                      className="w-full px-4 py-3 border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Password Baru"
-                      className="w-full px-4 py-3 border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Konfirmasi Password Baru"
-                      className="w-full px-4 py-3 border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
-                    />
+              {successMessage && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-green-700 text-sm">{successMessage}</span>
+                </div>
+              )}
+
+              {isLoadingProfile ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-slate-600">Memuat profil...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-col md:flex-row items-center gap-4 rounded-xl border border-slate-200 p-4 bg-white">
+                    <div className="flex-shrink-0">
+                      <div className="relative w-24 h-24 rounded-full overflow-hidden border border-slate-200 bg-slate-100">
+                        <img
+                          src={profileAvatar}
+                          alt="Foto Profil"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Avatar';
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm text-slate-600">Foto Profil</p>
+                      {isEditing ? (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="text-sm text-slate-500">Klik Edit untuk mengubah foto profil</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <User className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Nama Lengkap</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={draftProfile.full_name}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, full_name: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.full_name || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Mail className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Email</p>
+                      <p className="font-medium text-slate-800">{profile.email}</p>
+                      <p className="text-xs text-slate-500">Email tidak dapat diubah</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Phone className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Nomor Telepon</p>
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          value={draftProfile.phone || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, phone: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          placeholder="+62 xxx-xxxx-xxxx"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <User className="w-5 h-5 text-slate-400 mt-1" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Bio</p>
+                      {isEditing ? (
+                        <textarea
+                          value={draftProfile.bio || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, bio: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          rows={3}
+                          placeholder="Ceritakan tentang diri Anda..."
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.bio || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <User className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Universitas</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={draftProfile.university || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, university: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          placeholder="Nama universitas"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.university || 'Belum diisi'}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <User className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Keahlian</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={draftProfile.skills || ''}
+                          onChange={(e) => setDraftProfile({ ...draftProfile, skills: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                          placeholder="Contoh: Design Grafis, Video Editing"
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        <p className="font-medium text-slate-800">{profile.skills || 'Belum diisi'}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
+
+              {isEditing && (
+                <div className="flex space-x-2 mt-4">
+                  <button
+                    onClick={handleCancel}
+                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Change Password Section */}
+            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
+              <h3 className="font-bold text-slate-800 mb-4">Ubah Password</h3>
+
+              {/* Password Error/Success Messages */}
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <span className="text-red-700 text-sm">{passwordError}</span>
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-green-700 text-sm">{passwordSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Password Lama</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="password"
+                      value={passwordData.current_password}
+                      onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      placeholder="Masukkan password lama"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Password Baru</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="password"
+                      value={passwordData.new_password}
+                      onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      placeholder="Minimal 8 karakter"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Konfirmasi Password Baru</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="password"
+                      value={passwordData.confirm_password}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      placeholder="Ulangi password baru"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-3 rounded-lg hover:opacity-90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Mengubah Password...
+                    </>
+                  ) : (
+                    'Ubah Password'
+                  )}
+                </button>
+              </form>
             </div>
           </div>
         );
@@ -277,10 +738,17 @@ export function ProfileUser() {
         {/* Profile Header */}
         <div className="bg-white rounded-2xl shadow-sm p-8 mb-6">
           <div className="flex items-center space-x-6">
-            <img src={profile.avatar} alt={profile.name} className="w-24 h-24 rounded-full border-4 border-blue-100" />
+            <img 
+              src={profileAvatar} 
+              alt={profileName} 
+              className="w-24 h-24 rounded-full border-4 border-blue-100 object-cover" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Avatar';
+              }}
+            />
             <div>
-              <h1 className="text-3xl font-bold text-slate-800">{profile.name}</h1>
-              <p className="text-slate-600 mt-1">{profile.email}</p>
+              <h1 className="text-3xl font-bold text-slate-800">{profileName}</h1>
+              <p className="text-slate-600 mt-1">{profileEmail}</p>
             </div>
           </div>
         </div>
