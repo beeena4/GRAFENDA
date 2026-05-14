@@ -1,6 +1,8 @@
 ﻿const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const SellerProfile = require('../models/SellerProfile');
+const { sendEmail } = require('../utils/email');
 
 class AuthService {
   static generateToken(user) {
@@ -62,7 +64,7 @@ class AuthService {
 
     const isValidPassword = await User.verifyPassword(password, user.password);
     if (!isValidPassword) {
-      throw new Error('Invalid credentials');
+      throw new Error('Incorrect password');
     }
 
     const token = this.generateToken(user);
@@ -80,6 +82,84 @@ class AuthService {
       },
       token
     };
+  }
+
+  static async forgotPassword(email) {
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return { message: 'Instruksi reset password telah dikirim ke email Anda jika terdaftar.' };
+    }
+
+    const secret = process.env.RESET_PASSWORD_SECRET || process.env.JWT_SECRET;
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      secret,
+      { expiresIn: '1h' }
+    );
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+    const html = `
+      <p>Halo ${user.full_name || user.email},</p>
+      <p>Kami menerima permintaan reset password untuk akun Anda.</p>
+      <p>Klik tautan berikut untuk mengatur ulang password Anda:</p>
+      <p><a href="${resetUrl}">Reset Password</a></p>
+      <p>Jika Anda tidak meminta reset password, abaikan pesan ini.</p>
+    `;
+
+    let emailResult;
+    try {
+      emailResult = await sendEmail({
+        to: user.email,
+        subject: 'Reset Password Grafenda',
+        text: `Klik link berikut untuk reset password: ${resetUrl}`,
+        html,
+      });
+    } catch (emailError) {
+      console.warn('Failed to send reset email:', emailError.message);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Gagal mengirim email reset password. Silakan periksa konfigurasi SMTP.');
+      }
+
+      return {
+        message: 'Gagal mengirim email reset. Gunakan link reset di bawah ini untuk pengujian.',
+        resetUrl,
+        previewUrl: null,
+      };
+    }
+
+    const response = {
+      message: 'Instruksi reset password telah dikirim ke email Anda jika terdaftar.',
+      previewUrl: emailResult.previewUrl || null,
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      response.resetUrl = resetUrl;
+    }
+
+    return response;
+  }
+
+  static async resetPassword(token, newPassword) {
+    const secret = process.env.RESET_PASSWORD_SECRET || process.env.JWT_SECRET;
+    let payload;
+
+    try {
+      payload = jwt.verify(token, secret);
+    } catch (error) {
+      throw new Error('Token reset password tidak valid atau sudah kedaluwarsa. Silakan minta ulang melalui halaman lupa password.');
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user) {
+      throw new Error('Pengguna tidak ditemukan.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await User.updatePassword(user.id, hashedPassword);
+
+    return { message: 'Password berhasil diperbarui. Silakan masuk dengan password baru Anda.' };
   }
 
   static async getProfile(userId) {
@@ -160,11 +240,8 @@ class AuthService {
       throw new Error('Current password is incorrect');
     }
 
-    const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-    const { query } = require('../config/database');
-    await query('UPDATE users SET password = ? WHERE user_id = ?', [hashedPassword, userId]);
+    await User.updatePassword(userId, hashedPassword);
 
     return { message: 'Password changed successfully' };
   }

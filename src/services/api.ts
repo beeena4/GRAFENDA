@@ -26,8 +26,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
+    const isAuthEndpoint = /\/auth\/(login|register|forgot-password|reset-password)/.test(requestUrl);
+
+    if (status === 401 && !isAuthEndpoint) {
+      // Token expired or invalid for authenticated requests
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -52,6 +56,16 @@ export const authAPI = {
   login: async (data: { email: string; password: string }) => {
     const response = await api.post('/auth/login', data);
     return response.data.data;
+  },
+
+  forgotPassword: async (data: { email: string }) => {
+    const response = await api.post('/auth/forgot-password', data);
+    return response.data.data;
+  },
+
+  resetPassword: async (data: { token: string; new_password: string }) => {
+    const response = await api.post('/auth/reset-password', data);
+    return response.data.message;
   },
 
   getProfile: async () => {

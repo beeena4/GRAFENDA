@@ -2,6 +2,8 @@ import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Register } from "./pages/Register";
 import { RegisterSeller } from "./pages/RegisterSeller";
 import { Search } from "./pages/Search";
@@ -29,6 +31,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: Home },
       { path: "login", Component: Login },
+      { path: "forgot-password", Component: ForgotPassword },
+      { path: "reset-password", Component: ResetPassword },
       { path: "register", Component: Register },
       { path: "register-seller", Component: RegisterSeller },
       { path: "search", Component: Search },

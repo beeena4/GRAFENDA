@@ -64,6 +64,11 @@ class User {
     ]);
   }
 
+  static async updatePassword(id, hashedPassword) {
+    const sql = `UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`;
+    await query(sql, [hashedPassword, id]);
+  }
+
   static async updateBalance(id, amount) {
     const sql = `UPDATE users SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`;
     await query(sql, [amount, id]);

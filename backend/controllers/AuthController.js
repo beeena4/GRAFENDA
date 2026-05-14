@@ -47,6 +47,39 @@ class AuthController {
     }
   }
 
+  // Forgot password
+  static async forgotPassword(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return sendError(res, 'Validation failed', 400, errors.array());
+      }
+
+      const { email } = req.body;
+      const result = await AuthService.forgotPassword(email);
+
+      sendSuccess(res, result.message, result);
+    } catch (error) {
+      sendError(res, error.message, 400);
+    }
+  }
+
+  static async resetPassword(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return sendError(res, 'Validation failed', 400, errors.array());
+      }
+
+      const { token, new_password } = req.body;
+      const result = await AuthService.resetPassword(token, new_password);
+
+      sendSuccess(res, result.message);
+    } catch (error) {
+      sendError(res, error.message, 400);
+    }
+  }
+
   // Get profile
   static async getProfile(req, res) {
     try {
