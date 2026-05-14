@@ -31,8 +31,17 @@ const updateProfileValidation = [
   body('max_concurrent_orders').optional().isInt({ min: 1, max: 10 })
 ];
 
+const forgotPasswordValidation = [
+  body('email').isEmail().normalizeEmail()
+];
+
 const changePasswordValidation = [
   body('current_password').notEmpty(),
+  body('new_password').isLength({ min: 8 })
+];
+
+const resetPasswordValidation = [
+  body('token').notEmpty(),
   body('new_password').isLength({ min: 8 })
 ];
 
@@ -51,6 +60,8 @@ const handleProfileUpload = (req, res, next) => {
 // Routes
 router.post('/register', authLimiter, registerValidation, AuthController.register);
 router.post('/login', authLimiter, loginValidation, AuthController.login);
+router.post('/forgot-password', authLimiter, forgotPasswordValidation, AuthController.forgotPassword);
+router.post('/reset-password', authLimiter, resetPasswordValidation, AuthController.resetPassword);
 router.post('/logout', authenticateToken, AuthController.logout);
 
 router.get('/profile', authenticateToken, AuthController.getProfile);
