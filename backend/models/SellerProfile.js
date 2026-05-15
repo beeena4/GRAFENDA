@@ -22,7 +22,7 @@ class SellerProfile {
     const sql = `
       SELECT sp.*, u.full_name, u.avatar, u.email
       FROM seller_profiles sp
-      JOIN users u ON sp.user_id = u.id
+      JOIN users u ON sp.user_id = u.user_id
       WHERE sp.user_id = ?
     `;
     const sellers = await query(sql, [userId]);
@@ -54,7 +54,7 @@ class SellerProfile {
     const sql = `
       SELECT sp.*, u.full_name, u.avatar, u.email
       FROM seller_profiles sp
-      JOIN users u ON sp.user_id = u.id
+      JOIN users u ON sp.user_id = u.user_id
       WHERE sp.is_active = true
       ORDER BY sp.rating DESC, sp.total_orders DESC
       LIMIT ?

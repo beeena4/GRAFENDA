@@ -22,6 +22,7 @@ export interface RegisterData {
   email: string;
   password: string;
   role: 'user' | 'seller' | 'admin';
+  full_name?: string;
 }
 
 // Register
