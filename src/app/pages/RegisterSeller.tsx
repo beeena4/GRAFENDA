@@ -1,21 +1,63 @@
 import { Link, useNavigate } from "react-router";
 import { useState } from "react";
 import { User, Mail, Lock, Briefcase, FileText } from "lucide-react";
+import { authAPI } from "../../services/api";
 
 export function RegisterSeller() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: '',
+    full_name: '',
     email: '',
     password: '',
     confirmPassword: '',
     skills: '',
-    portfolio: '',
+    portfolio_url: '',
+    phone: '',
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/dashboard/seller');
+    setError('');
+    setLoading(true);
+
+    try {
+      // Validation
+      if (formData.password !== formData.confirmPassword) {
+        setError('Password tidak cocok');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.password.length < 8) {
+        setError('Password minimal 8 karakter');
+        setLoading(false);
+        return;
+      }
+
+      // Send registration to backend
+      const result = await authAPI.register({
+        full_name: formData.full_name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        role: 'seller',
+      });
+
+      // Save token and user data
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
+
+      // Redirect to seller dashboard
+      navigate('/dashboard/seller');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || err.message || 'Registrasi gagal';
+      setError(errorMessage);
+      console.error('Registration error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,6 +79,12 @@ export function RegisterSeller() {
             <p className="text-slate-600 mt-2">Mulai tawarkan jasa kreatif Anda</p>
           </div>
 
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Nama Lengkap</label>
@@ -44,8 +92,8 @@ export function RegisterSeller() {
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nama Lengkap"
                   required
@@ -69,6 +117,20 @@ export function RegisterSeller() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">No. Telepon (Opsional)</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  placeholder="+62 812-3456-7890"
+                />
+              </div>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Keahlian</label>
               <div className="relative">
                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -84,13 +146,13 @@ export function RegisterSeller() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Link Portofolio</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Link Portofolio (Opsional)</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="url"
-                  value={formData.portfolio}
-                  onChange={(e) => setFormData({ ...formData, portfolio: e.target.value })}
+                  value={formData.portfolio_url}
+                  onChange={(e) => setFormData({ ...formData, portfolio_url: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="https://portfolio.com"
                 />
@@ -136,9 +198,10 @@ export function RegisterSeller() {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-3 rounded-lg hover:opacity-90 transition-all font-medium"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-3 rounded-lg hover:opacity-90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Daftar sebagai Freelancer
+              {loading ? 'Mendaftar...' : 'Daftar sebagai Freelancer'}
             </button>
           </form>
 

@@ -14,10 +14,10 @@ class AuthService {
   }
 
   static async register(userData) {
-    const { email, password, full_name, phone, role = 'user' } = userData;
+    const { email, password, full_name, phone, role = 'user', skills = '', portfolio_url = '' } = userData;
     const appRole = role === 'seller' ? 'seller' : 'user';
 
-    console.log('AuthService.register userData:', { email, password: !!password, full_name, phone, role: appRole });
+    console.log('AuthService.register userData:', { email, password: !!password, full_name, phone, role: appRole, skills, portfolio_url });
 
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
@@ -36,8 +36,9 @@ class AuthService {
       await SellerProfile.create({
         user_id: userId,
         bio: '',
-        skills: '',
-        experience_years: 0
+        skills: skills || '',
+        experience_years: 0,
+        portfolio_url: portfolio_url || ''
       });
     }
 
