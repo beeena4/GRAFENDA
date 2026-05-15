@@ -19,10 +19,10 @@ const createMissingTables = async () => {
     console.log(`✅ Terhubung ke MySQL`);
     
     // Switch to the database
-    await connection.execute(`USE ${dbName}`);
+    await connection.query(`USE ${dbName}`);
     
     // Check if seller_profiles table exists
-    const [tables] = await connection.execute(`
+    const [tables] = await connection.query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'seller_profiles'
@@ -32,7 +32,7 @@ const createMissingTables = async () => {
       console.log('✅ Tabel seller_profiles sudah ada');
     } else {
       console.log('📦 Membuat tabel seller_profiles...');
-      await connection.execute(`
+      await connection.query(`
         CREATE TABLE IF NOT EXISTS seller_profiles (
           id INT PRIMARY KEY AUTO_INCREMENT,
           user_id INT NOT NULL UNIQUE,
@@ -57,7 +57,7 @@ const createMissingTables = async () => {
     }
     
     // Check and create categories table
-    const [categoriesTables] = await connection.execute(`
+    const [categoriesTables] = await connection.query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'categories'
@@ -95,7 +95,7 @@ const createMissingTables = async () => {
     }
     
     // Check and create services table
-    const [servicesTables] = await connection.execute(`
+    const [servicesTables] = await connection.query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'services'
@@ -103,7 +103,7 @@ const createMissingTables = async () => {
     
     if (servicesTables.length === 0) {
       console.log('📦 Membuat tabel services...');
-      await connection.execute(`
+      await connection.query(`
         CREATE TABLE IF NOT EXISTS services (
           id INT PRIMARY KEY AUTO_INCREMENT,
           seller_id INT NOT NULL,
@@ -127,7 +127,7 @@ const createMissingTables = async () => {
     }
     
     // Check and create service_packages table
-    const [packagesTables] = await connection.execute(`
+    const [packagesTables] = await connection.query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'service_packages'
@@ -135,7 +135,7 @@ const createMissingTables = async () => {
     
     if (packagesTables.length === 0) {
       console.log('📦 Membuat tabel service_packages...');
-      await connection.execute(`
+      await connection.query(`
         CREATE TABLE IF NOT EXISTS service_packages (
           id INT PRIMARY KEY AUTO_INCREMENT,
           service_id INT NOT NULL,
