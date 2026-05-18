@@ -10,6 +10,7 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 // Import routes
 const authRoutes = require('./routes/auth');
 const serviceRoutes = require('./routes/services');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const orderRoutes = require('./routes/orders');
 const paymentRoutes = require('./routes/payments');
 const chatRoutes = require('./routes/chat');
@@ -71,6 +72,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/withdraws', withdrawRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/profile', require('./routes/profile'));
 
 // Health check
 app.get('/api/health', (req, res) => {

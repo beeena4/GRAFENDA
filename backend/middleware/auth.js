@@ -14,12 +14,25 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const users = await query(
-      'SELECT user_id as id, email, nama as full_name, role, is_active as is_verified FROM users WHERE user_id = ?',
-      [decoded.id]
-    );
-    
+
+    // Retry query jika ECONNRESET
+    let users;
+    for (let i = 0; i < 3; i++) {
+      try {
+        users = await query(
+          'SELECT id, email, full_name, role, is_verified FROM users WHERE id = ?',
+          [decoded.id]
+        );
+        break;
+      } catch (dbError) {
+        if (dbError.code === 'ECONNRESET' && i < 2) {
+          await new Promise(res => setTimeout(res, 500));
+          continue;
+        }
+        throw dbError;
+      }
+    }
+
     if (users.length === 0) {
       return res.status(401).json({
         success: false,
@@ -33,6 +46,7 @@ const authenticateToken = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.error('Auth error:', error.code, error.message);
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,

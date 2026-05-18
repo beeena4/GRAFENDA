@@ -1,9 +1,15 @@
 const { validationResult } = require('express-validator');
 const Service = require('../models/Service');
 const ServicePackage = require('../models/ServicePackage');
-const { sendSuccess, sendError, buildSearchFilters, getPaginationData } = require('../utils/helpers');
+const {
+  sendSuccess,
+  sendError,
+  buildSearchFilters,
+  getPaginationData
+} = require('../utils/helpers');
 
 class ServiceController {
+
   // Get all services with search and filters
   static async getServices(req, res) {
     try {
@@ -15,11 +21,20 @@ class ServiceController {
 
       const response = {
         services: result.services,
-        pagination: getPaginationData(page, limit, result.pagination.total),
-        filters: filters
+        pagination: getPaginationData(
+          page,
+          limit,
+          result.pagination.total
+        ),
+        filters
       };
 
-      sendSuccess(res, 'Services retrieved successfully', response);
+      sendSuccess(
+        res,
+        'Services retrieved successfully',
+        response
+      );
+
     } catch (error) {
       sendError(res, error.message, 500);
     }
@@ -31,19 +46,30 @@ class ServiceController {
       const { id } = req.params;
 
       const service = await Service.findById(id);
+
       if (!service) {
-        return sendError(res, 'Service not found', 404);
+        return sendError(
+          res,
+          'Service not found',
+          404
+        );
       }
 
-      // Get service packages
-      const packages = await ServicePackage.findByServiceId(id);
+      // Get packages
+      const packages =
+        await ServicePackage.findByServiceId(id);
 
       const response = {
         ...service,
         packages
       };
 
-      sendSuccess(res, 'Service details retrieved successfully', response);
+      sendSuccess(
+        res,
+        'Service details retrieved successfully',
+        response
+      );
+
     } catch (error) {
       sendError(res, error.message, 500);
     }
@@ -52,145 +78,343 @@ class ServiceController {
   // Get featured services
   static async getFeaturedServices(req, res) {
     try {
-      const limit = parseInt(req.query.limit) || 10;
+      const limit =
+        parseInt(req.query.limit) || 10;
 
-      const services = await Service.getFeatured(limit);
+      const services =
+        await Service.getFeatured(limit);
 
-      sendSuccess(res, 'Featured services retrieved successfully', services);
+      sendSuccess(
+        res,
+        'Featured services retrieved successfully',
+        services
+      );
+
     } catch (error) {
       sendError(res, error.message, 500);
     }
   }
 
-  // Create service (seller only)
+  // Create service
   static async createService(req, res) {
     try {
-      // Check validation errors
+
+      // Validation
       const errors = validationResult(req);
+
       if (!errors.isEmpty()) {
-        return sendError(res, 'Validation failed', 400, errors.array());
+        return sendError(
+          res,
+          'Validation failed',
+          400,
+          errors.array()
+        );
       }
 
-      const sellerId = req.user.role === 'seller' ? 
-        (await require('../models/SellerProfile').findByUserId(req.user.id)).id : null;
+      // Seller profile
+      const sellerProfile =
+        req.user.role === 'seller'
+          ? await require('../models/SellerProfile')
+              .findByUserId(req.user.id)
+          : null;
+
+      const sellerId = sellerProfile?.id;
 
       if (!sellerId) {
-        return sendError(res, 'Seller profile not found', 404);
+        return sendError(
+          res,
+          'Seller profile not found',
+          404
+        );
       }
 
-      const { category_id, title, description, tags, packages } = req.body;
-
-      // Create service
-      const serviceId = await Service.create({
-        seller_id: sellerId,
+      const {
         category_id,
         title,
         description,
-        tags
-      });
+        tags,
+        packages
+      } = req.body;
 
-      // Create service packages
+      // Create service
+      const serviceId =
+        await Service.create({
+          seller_id: sellerId,
+          category_id,
+          title,
+          description,
+          tags
+        });
+
+      // Create packages
       if (packages && packages.length > 0) {
+
         for (const pkg of packages) {
+
           await ServicePackage.create({
             service_id: serviceId,
             ...pkg
           });
+
         }
       }
 
-      const service = await Service.findById(serviceId);
-      const servicePackages = await ServicePackage.findByServiceId(serviceId);
+      const service =
+        await Service.findById(serviceId);
 
-      sendSuccess(res, 'Service created successfully', {
-        ...service,
-        packages: servicePackages
-      }, 201);
+      const servicePackages =
+        await ServicePackage.findByServiceId(
+          serviceId
+        );
+
+      sendSuccess(
+        res,
+        'Service created successfully',
+        {
+          ...service,
+          packages: servicePackages
+        },
+        201
+      );
+
     } catch (error) {
-      sendError(res, error.message, 500);
+
+      console.error(
+        'CREATE SERVICE ERROR:',
+        error
+      );
+
+      sendError(
+        res,
+        error.message || 'Internal server error',
+        500
+      );
     }
   }
 
-  // Update service (seller only)
+  // Update service
   static async updateService(req, res) {
     try {
-      // Check validation errors
+
+      // Validation
       const errors = validationResult(req);
+
       if (!errors.isEmpty()) {
-        return sendError(res, 'Validation failed', 400, errors.array());
+        return sendError(
+          res,
+          'Validation failed',
+          400,
+          errors.array()
+        );
       }
 
       const { id } = req.params;
-      const sellerId = req.user.role === 'seller' ? 
-        (await require('../models/SellerProfile').findByUserId(req.user.id)).id : null;
+
+      // Seller profile
+      const sellerProfile =
+        req.user.role === 'seller'
+          ? await require('../models/SellerProfile')
+              .findByUserId(req.user.id)
+          : null;
+
+      const sellerId = sellerProfile?.id;
 
       if (!sellerId) {
-        return sendError(res, 'Seller profile not found', 404);
+        return sendError(
+          res,
+          'Seller profile not found',
+          404
+        );
       }
 
-      // Check if service belongs to seller
-      const service = await Service.findById(id);
-      if (!service || service.seller_id !== sellerId) {
-        return sendError(res, 'Service not found or access denied', 404);
+      // Check ownership
+      const service =
+        await Service.findByIdAny(id);
+
+
+      if (
+        !service ||
+        service.seller_id !== sellerId
+      ) {
+        return sendError(
+          res,
+          'Service not found or access denied',
+          404
+        );
       }
 
+      // Frontend data
       const updateData = req.body;
-      await Service.update(id, updateData);
 
-      const updatedService = await Service.findById(id);
-      sendSuccess(res, 'Service updated successfully', updatedService);
+      console.log(
+        'REQ BODY UPDATE:',
+        updateData
+      );
+
+      // Update
+     await Service.update(id, updateData);
+
+      // Update packages jika ada
+      if (updateData.packages && updateData.packages.length > 0) {
+
+        // Hapus package lama
+        await ServicePackage.deleteByServiceId(id);
+
+        // Insert package baru
+        for (const pkg of updateData.packages) {
+
+          await ServicePackage.create({
+            service_id: id,
+            ...pkg
+          });
+
+        }
+      }
+
+      // Get updated service
+      const updatedService =
+        await Service.findById(id);
+
+      sendSuccess(
+        res,
+        'Service updated successfully',
+        updatedService
+      );
+
     } catch (error) {
-      sendError(res, error.message, 500);
+
+      console.error(
+        'UPDATE SERVICE ERROR:',
+        error
+      );
+
+      sendError(
+        res,
+        error.message || 'Internal server error',
+        500
+      );
     }
   }
 
-  // Delete service (seller only)
+  // Delete service
   static async deleteService(req, res) {
     try {
+
       const { id } = req.params;
-      const sellerId = req.user.role === 'seller' ? 
-        (await require('../models/SellerProfile').findByUserId(req.user.id)).id : null;
+
+      const sellerProfile =
+        req.user.role === 'seller'
+          ? await require('../models/SellerProfile')
+              .findByUserId(req.user.id)
+          : null;
+
+      const sellerId = sellerProfile?.id;
 
       if (!sellerId) {
-        return sendError(res, 'Seller profile not found', 404);
+        return sendError(
+          res,
+          'Seller profile not found',
+          404
+        );
       }
 
-      // Check if service belongs to seller
-      const service = await Service.findById(id);
-      if (!service || service.seller_id !== sellerId) {
-        return sendError(res, 'Service not found or access denied', 404);
+      // Check ownership
+      const service =
+        await Service.findById(id);
+
+      if (
+        !service ||
+        service.seller_id !== sellerId
+      ) {
+        return sendError(
+          res,
+          'Service not found or access denied',
+          404
+        );
       }
 
       await Service.delete(id);
-      sendSuccess(res, 'Service deleted successfully');
+
+      sendSuccess(
+        res,
+        'Service deleted successfully'
+      );
+
     } catch (error) {
-      sendError(res, error.message, 500);
+
+      console.error(
+        'DELETE SERVICE ERROR:',
+        error
+      );
+
+      sendError(
+        res,
+        error.message || 'Internal server error',
+        500
+      );
     }
   }
 
-  // Get seller's services
+  // Get seller services
   static async getSellerServices(req, res) {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      
-      const sellerId = req.user.role === 'seller' ? 
-        (await require('../models/SellerProfile').findByUserId(req.user.id)).id : null;
+
+      const page =
+        parseInt(req.query.page) || 1;
+
+      const limit =
+        parseInt(req.query.limit) || 10;
+
+      const sellerProfile =
+        req.user.role === 'seller'
+          ? await require('../models/SellerProfile')
+              .findByUserId(req.user.id)
+          : null;
+
+      const sellerId = sellerProfile?.id;
 
       if (!sellerId) {
-        return sendError(res, 'Seller profile not found', 404);
+        return sendError(
+          res,
+          'Seller profile not found',
+          404
+        );
       }
 
-      const result = await Service.findBySellerId(sellerId, page, limit);
+      const result =
+        await Service.findBySellerId(
+          sellerId,
+          page,
+          limit
+        );
 
       const response = {
         services: result.services,
-        pagination: getPaginationData(page, limit, result.pagination.total)
+        pagination: getPaginationData(
+          page,
+          limit,
+          result.pagination.total
+        )
       };
 
-      sendSuccess(res, 'Seller services retrieved successfully', response);
+      sendSuccess(
+        res,
+        'Seller services retrieved successfully',
+        response
+      );
+
     } catch (error) {
-      sendError(res, error.message, 500);
+
+      console.error(
+        'GET SELLER SERVICES ERROR:',
+        error
+      );
+
+      sendError(
+        res,
+        error.message || 'Internal server error',
+        500
+      );
     }
   }
 }

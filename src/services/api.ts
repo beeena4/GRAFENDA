@@ -1,7 +1,8 @@
+/// <reference types="vite/client" />
 import axios from 'axios';
 
 // API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
 
 // Create axios instance
 export const api = axios.create({
@@ -53,6 +54,16 @@ export const authAPI = {
     return response.data.data;
   },
 
+  updateSellerProfile: async (data: {
+  location?: string | null;
+  skills?: string | null;
+  portfolio_url?: string | null;
+  bio?: string | null;
+}) => {
+  const response = await api.put('/profile/seller', data);
+  return response.data.data;
+},
+
   login: async (data: { email: string; password: string }) => {
     const response = await api.post('/auth/login', data);
     return response.data.data;
@@ -88,6 +99,47 @@ export const authAPI = {
 
   logout: async () => {
     const response = await api.post('/auth/logout');
+    return response.data;
+  },
+};
+
+export const dashboardAPI = {
+  getBuyerDashboard: async () => {
+    const response = await api.get('/dashboard/buyer');
+    return response.data.data;
+  },
+
+  getSellerDashboard: async () => {
+    const response = await api.get('/dashboard/seller');
+    return response.data.data;
+  }
+};
+
+
+
+export const serviceAPI = {
+  createService: async (data: any) => {
+  try {
+    const response = await api.post('/services', data);
+    return response.data.data;
+  } catch (err: any) {
+    console.log('Detail error:', JSON.stringify(err.response?.data, null, 2));
+    throw err;
+  }
+},
+
+getServiceById: async (id: number) => {
+  const response = await api.get(`/services/${id}`);
+  return response.data.data;
+},
+
+  updateService: async (id: number, data: any) => {
+    const response = await api.put(`/services/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteService: async (id: number) => {
+    const response = await api.delete(`/services/${id}`);
     return response.data;
   },
 };

@@ -12,7 +12,7 @@ const registerValidation = [
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 8 }),
   body('full_name').trim().isLength({ min: 2 }),
-  body('phone').optional().isMobilePhone(),
+  body('phone').optional({ nullable: true, checkFalsy: true }).isMobilePhone('any'),
   body('role').optional().isIn(['user', 'seller'])
 ];
 
@@ -23,11 +23,11 @@ const loginValidation = [
 
 const updateProfileValidation = [
   body('full_name').optional().trim().isLength({ min: 2 }),
-  body('phone').optional().isMobilePhone(),
+  body('phone').optional({ nullable: true, checkFalsy: true }).isMobilePhone('any'),
   body('bio').optional().trim().isLength({ max: 500 }),
   body('skills').optional().trim(),
   body('experience_years').optional().isInt({ min: 0 }),
-  body('portfolio_url').optional().isURL(),
+  body('portfolio_url').optional({ checkFalsy: true }).isURL(),
   body('max_concurrent_orders').optional().isInt({ min: 1, max: 10 })
 ];
 

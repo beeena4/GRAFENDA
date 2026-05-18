@@ -14,10 +14,8 @@ class ProfileController {
         return sendError(res, 'User not found', 404);
       }
 
-      // Remove sensitive data
       delete user.password_hash;
 
-      // If seller, get seller profile
       let sellerProfile = null;
       if (user.role === 'seller') {
         sellerProfile = await SellerProfile.findByUserId(userId);
@@ -37,7 +35,6 @@ class ProfileController {
   // Update user profile
   static async updateProfile(req, res) {
     try {
-      // Check validation errors
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return sendError(res, 'Validation failed', 400, errors.array());
@@ -46,7 +43,6 @@ class ProfileController {
       const userId = req.user.id;
       const { name, email, phone, avatar } = req.body;
 
-      // Check if email is already taken by another user
       if (email) {
         const existingUser = await User.findByEmail(email);
         if (existingUser && existingUser.id !== userId) {
@@ -54,10 +50,8 @@ class ProfileController {
         }
       }
 
-      // Update user
       await User.update(userId, { name, email, phone, avatar });
 
-      // Get updated user
       const updatedUser = await User.findById(userId);
       delete updatedUser.password_hash;
 
@@ -70,7 +64,6 @@ class ProfileController {
   // Update seller profile
   static async updateSellerProfile(req, res) {
     try {
-      // Check validation errors
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return sendError(res, 'Validation failed', 400, errors.array());
@@ -87,20 +80,29 @@ class ProfileController {
         bio,
         skills,
         portfolio_url,
+        location,
         social_links,
         experience_years,
         education,
         certifications
       } = req.body;
 
-      // Get or create seller profile
+      // Normalize skills: terima string atau array
+      const normalizeSkills = (val) => {
+        if (val === undefined || val === null) return null;
+        if (Array.isArray(val)) return JSON.stringify(val);
+        return JSON.stringify(val.split(',').map(s => s.trim()).filter(Boolean));
+      };
+
       let sellerProfile = await SellerProfile.findByUserId(userId);
+
       if (!sellerProfile) {
         const sellerProfileId = await SellerProfile.create({
           user_id: userId,
           bio,
-          skills: JSON.stringify(skills || []),
+          skills: normalizeSkills(skills) || '[]',
           portfolio_url,
+          location,
           social_links: JSON.stringify(social_links || {}),
           experience_years,
           education: JSON.stringify(education || []),
@@ -110,8 +112,9 @@ class ProfileController {
       } else {
         await SellerProfile.update(sellerProfile.id, {
           bio,
-          skills: skills ? JSON.stringify(skills) : sellerProfile.skills,
+          skills: normalizeSkills(skills) || sellerProfile.skills,
           portfolio_url,
+          location,
           social_links: social_links ? JSON.stringify(social_links) : sellerProfile.social_links,
           experience_years,
           education: education ? JSON.stringify(education) : sellerProfile.education,
@@ -141,7 +144,6 @@ class ProfileController {
         return sendError(res, 'Seller profile not found', 404);
       }
 
-      // Get seller stats
       const Review = require('../models/Review');
       const stats = await Review.getSellerStats(sellerProfile.id);
 
@@ -177,11 +179,9 @@ class ProfileController {
         return sendError(res, 'Seller profile not found', 404);
       }
 
-      // Get seller services
       const Service = require('../models/Service');
       const services = await Service.findBySellerId(sellerProfile.id, 1, 10);
 
-      // Get seller reviews
       const Review = require('../models/Review');
       const reviews = await Review.findBySellerId(sellerProfile.id, 1, 5);
 
