@@ -15,8 +15,9 @@ const updateProfileValidation = [
 
 const updateSellerProfileValidation = [
   body('bio').optional().isLength({ max: 1000 }),
-  body('skills').optional().isArray(),
-  body('portfolio_url').optional().isURL(),
+  body('skills').optional(),
+  body('portfolio_url').optional({ checkFalsy: true }).isURL(),
+  body('location').optional().trim(),
   body('social_links').optional().isObject(),
   body('experience_years').optional().isInt({ min: 0, max: 50 }),
   body('education').optional().isArray(),

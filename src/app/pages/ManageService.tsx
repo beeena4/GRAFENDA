@@ -1,46 +1,145 @@
 import { useNavigate, useParams } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Upload, X, Plus } from "lucide-react";
+import { serviceAPI } from "../../services/api";
+
+const categoryMap: Record<string, number> = {
+  design: 1,
+  video: 2,
+  writing: 3,
+};
 
 export function ManageService() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = !!id;
 
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
-    title: isEdit ? 'Desain Logo Profesional untuk Brand Anda' : '',
-    category: isEdit ? 'design' : '',
-    description: isEdit ? 'Saya akan mendesain logo profesional yang unik dan menarik untuk bisnis Anda.' : '',
-    images: isEdit ? ['https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400'] : [],
+    title: '',
+    category: '',
+    description: '',
+    images: [] as string[],
     packages: {
       basic: {
         name: 'Basic',
-        price: isEdit ? '150000' : '',
-        delivery: isEdit ? '3' : '',
-        revisions: isEdit ? '2' : '',
-        features: isEdit ? ['1 Konsep Logo', 'File PNG & JPG', '2x Revisi'] : [''],
+        price: '',
+        delivery: '1',
+        revisions: '1',
+        features: [''],
       },
       standard: {
         name: 'Standard',
-        price: isEdit ? '250000' : '',
-        delivery: isEdit ? '5' : '',
-        revisions: isEdit ? '3' : '',
-        features: isEdit ? ['3 Konsep Logo', 'File PNG, JPG, SVG', '3x Revisi', 'Logo Guideline'] : [''],
+        price: '',
+        delivery: '1',
+        revisions: '1',
+        features: [''],
       },
       premium: {
         name: 'Premium',
-        price: isEdit ? '400000' : '',
-        delivery: isEdit ? '7' : '',
-        revisions: isEdit ? 'Unlimited' : '',
-        features: isEdit ? ['5 Konsep Logo', 'Semua Format File', 'Unlimited Revisi', 'Brand Identity Kit'] : [''],
+        price: '',
+        delivery: '1',
+        revisions: '1',
+        features: [''],
       },
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch data service saat mode edit
+  useEffect(() => {
+    if (!isEdit) return;
+    const fetchService = async () => {
+      try {
+        const data = await serviceAPI.getServiceById(Number(id));
+        setFormData({
+          title: data.title || '',
+          category: Object.keys(categoryMap).find(k => categoryMap[k] === data.category_id) || '',
+          description: data.description || '',
+          images: [],
+          packages: {
+            basic: {
+              name: 'Basic',
+              price: data.packages?.find((p: any) => p.package_type === 'basic')?.price?.toString() || '1',
+              delivery: data.packages?.find((p: any) => p.package_type === 'basic')?.delivery_days?.toString() || '1',
+              revisions: data.packages?.find((p: any) => p.package_type === 'basic')?.revisions?.toString() || '1',
+              features: data.packages?.find((p: any) => p.package_type === 'basic')?.features?.split(',') || [''],
+            },
+            standard: {
+              name: 'Standard',
+              price: data.packages?.find((p: any) => p.package_type === 'standard')?.price?.toString() || '1',
+              delivery: data.packages?.find((p: any) => p.package_type === 'standard')?.delivery_days?.toString() || '1',
+              revisions: data.packages?.find((p: any) => p.package_type === 'standard')?.revisions?.toString() || '1',
+              features: data.packages?.find((p: any) => p.package_type === 'standard')?.features?.split(',') || [''],
+            },
+            premium: {
+              name: 'Premium',
+              price: data.packages?.find((p: any) => p.package_type === 'premium')?.price?.toString() || '1',
+              delivery: data.packages?.find((p: any) => p.package_type === 'premium')?.delivery_days?.toString() || '1',
+              revisions: data.packages?.find((p: any) => p.package_type === 'premium')?.revisions?.toString() || '1',
+              features: data.packages?.find((p: any) => p.package_type === 'premium')?.features?.split(',') || [''],
+            },
+          },
+        });
+      } catch (err) {
+        console.error('Gagal fetch service:', err);
+        setError('Gagal memuat data jasa.');
+      }
+    };
+    fetchService();
+  }, [isEdit, id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Save service logic here
-    navigate('/dashboard/seller');
+    setSubmitting(true);
+    setError(null);
+
+    const category_id = categoryMap[formData.category];
+    if (!category_id) {
+      setError('Kategori tidak valid.');
+      setSubmitting(false);
+      return;
+    }
+
+    const packages = (['basic', 'standard', 'premium'] as const).map((type) => ({
+      package_type: type,
+      name: formData.packages[type].name,
+      price: Number(formData.packages[type].price),
+      delivery_days: Number(formData.packages[type].delivery),
+      revisions: isNaN(Number(formData.packages[type].revisions))
+        ? 0
+        : Number(formData.packages[type].revisions),
+      features: formData.packages[type].features.filter((f) => f.trim() !== ''),
+    }));
+
+    try {
+     if (isEdit) {
+        await serviceAPI.updateService(Number(id), {
+          title: formData.title,
+          category_id,
+          description: formData.description,
+          packages,
+        });
+      } else {
+        await serviceAPI.createService({
+          title: formData.title,
+          category_id,
+          description: formData.description,
+          packages,
+        });
+      }
+      navigate('/dashboard/seller');
+    } catch (err: any) {
+      console.error('Gagal menyimpan jasa:', err);
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.errors?.[0]?.msg ||
+        'Gagal menyimpan jasa. Coba lagi.';
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleImageUpload = () => {
@@ -94,6 +193,12 @@ export function ManageService() {
             {isEdit ? 'Perbarui informasi jasa Anda' : 'Buat jasa baru untuk ditawarkan ke pembeli'}
           </p>
 
+          {error && (
+            <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Basic Info */}
             <div className="space-y-4">
@@ -109,8 +214,10 @@ export function ManageService() {
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Contoh: Desain Logo Profesional untuk Brand Anda"
+                  minLength={5}
                   required
                 />
+                <p className="text-xs text-slate-400 mt-1">Minimal 5 karakter</p>
               </div>
 
               <div>
@@ -125,9 +232,8 @@ export function ManageService() {
                 >
                   <option value="">Pilih Kategori</option>
                   <option value="design">Desain Grafis</option>
-                  <option value="video">Audio & Video</option>
+                  <option value="video">Video Editing</option>
                   <option value="writing">Penulisan</option>
-                  <option value="programming">Programming</option>
                 </select>
               </div>
 
@@ -141,8 +247,10 @@ export function ManageService() {
                   rows={6}
                   className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
                   placeholder="Jelaskan detail jasa yang Anda tawarkan..."
+                  minLength={20}
                   required
                 />
+                <p className="text-xs text-slate-400 mt-1">Minimal 20 karakter</p>
               </div>
 
               <div>
@@ -194,15 +302,17 @@ export function ManageService() {
                         Harga (Rp) <span className="text-red-500">*</span>
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         value={formData.packages[packageType].price}
                         onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
                           const updatedPackages = { ...formData.packages };
                           updatedPackages[packageType].price = e.target.value;
                           setFormData({ ...formData, packages: updatedPackages });
                         }}
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         placeholder="150000"
+                        min={10000}
                         required
                       />
                     </div>
@@ -220,6 +330,8 @@ export function ManageService() {
                         }}
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         placeholder="3"
+                        min={1}
+                        required
                       />
                     </div>
                     <div>
@@ -288,9 +400,14 @@ export function ManageService() {
               </button>
               <button
                 type="submit"
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-shadow font-medium"
+                disabled={submitting}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-shadow font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isEdit ? 'Simpan Perubahan' : 'Tambah Jasa'}
+                {submitting
+                  ? 'Menyimpan...'
+                  : isEdit
+                  ? 'Simpan Perubahan'
+                  : 'Tambah Jasa'}
               </button>
             </div>
           </form>

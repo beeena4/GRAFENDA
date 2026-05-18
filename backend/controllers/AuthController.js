@@ -9,8 +9,9 @@ class AuthController {
       // Check validation errors
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return sendError(res, 'Validation failed', 400, errors.array());
-      }
+      console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
+      return sendError(res, 'Validation failed', 400, errors.array());
+    }
 
       const { email, password, full_name, phone, role } = req.body;
 

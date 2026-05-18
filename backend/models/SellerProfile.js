@@ -4,34 +4,66 @@ const safeValue = (value) => value === undefined ? null : value;
 
 class SellerProfile {
   static async create(sellerData) {
-    const { user_id, bio, skills, experience_years, portfolio_url } = sellerData;
-    
-    const sql = `INSERT INTO seller_profiles (user_id, bio, skills, experience_years, portfolio_url) VALUES (?, ?, ?, ?, ?)`;
+    const { user_id, bio, skills, experience_years, portfolio_url, location } = sellerData;
+
+    const sql = `INSERT INTO seller_profiles (user_id, bio, skills, experience_years, portfolio_url, location) VALUES (?, ?, ?, ?, ?, ?)`;
     const result = await query(sql, [
       user_id,
       safeValue(bio),
       safeValue(skills),
       safeValue(experience_years),
-      safeValue(portfolio_url)
+      safeValue(portfolio_url),
+      safeValue(location)
     ]);
-    
+
     return result.insertId;
+  }
+
+  // Tambah findById
+  static async findById(id) {
+    const sql = `
+      SELECT sp.*, u.full_name, u.avatar, u.email
+      FROM seller_profiles sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.id = ?
+    `;
+    const sellers = await query(sql, [id]);
+    return sellers[0];
   }
 
   static async findByUserId(userId) {
     const sql = `
       SELECT sp.*, u.full_name, u.avatar, u.email
       FROM seller_profiles sp
-      JOIN users u ON sp.user_id = u.user_id
+      JOIN users u ON sp.user_id = u.id
       WHERE sp.user_id = ?
     `;
     const sellers = await query(sql, [userId]);
     return sellers[0];
   }
 
+  // Tambah update (by id)
+  static async update(id, updateData) {
+  const { bio, skills, experience_years, portfolio_url, location } = updateData;
+
+  const sql = `
+    UPDATE seller_profiles 
+    SET bio = ?, skills = ?, experience_years = ?, portfolio_url = ?, 
+        location = ?, updated_at = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `;
+  await query(sql, [
+    safeValue(bio),
+    safeValue(skills),
+    safeValue(experience_years),
+    safeValue(portfolio_url),
+    safeValue(location),
+    id
+  ]);
+}
   static async updateProfile(userId, updateData) {
     const { bio, skills, experience_years, portfolio_url, max_concurrent_orders } = updateData;
-    
+
     const sql = `UPDATE seller_profiles SET bio = ?, skills = ?, experience_years = ?, portfolio_url = ?, max_concurrent_orders = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`;
     await query(sql, [
       safeValue(bio),
@@ -45,7 +77,7 @@ class SellerProfile {
 
   static async updateStats(userId, stats) {
     const { rating, total_reviews, total_orders, completion_rate, response_time } = stats;
-    
+
     const sql = `UPDATE seller_profiles SET rating = ?, total_reviews = ?, total_orders = ?, completion_rate = ?, response_time = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`;
     await query(sql, [rating, total_reviews, total_orders, completion_rate, response_time, userId]);
   }
@@ -54,7 +86,7 @@ class SellerProfile {
     const sql = `
       SELECT sp.*, u.full_name, u.avatar, u.email
       FROM seller_profiles sp
-      JOIN users u ON sp.user_id = u.user_id
+      JOIN users u ON sp.user_id = u.id
       WHERE sp.is_active = true
       ORDER BY sp.rating DESC, sp.total_orders DESC
       LIMIT ?
@@ -63,24 +95,21 @@ class SellerProfile {
   }
 
   static async getSellerStats(userId) {
-    // Get seller profile
     const profile = await this.findByUserId(userId);
     if (!profile) return null;
 
-    // Get order statistics
     const orderStats = await query(`
       SELECT 
         COUNT(*) as total_orders,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
         SUM(CASE WHEN status = 'process' THEN 1 ELSE 0 END) as active_orders,
-        AVG(rating) as avg_rating,
+        AVG(r.rating) as avg_rating,
         COUNT(r.rating) as total_reviews
       FROM orders o
       LEFT JOIN reviews r ON o.id = r.order_id
       WHERE o.seller_id = ?
     `, [profile.id]);
 
-    // Get earnings statistics
     const earningsStats = await query(`
       SELECT 
         SUM(o.price) as total_earnings,

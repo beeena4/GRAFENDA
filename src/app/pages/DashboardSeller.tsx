@@ -1,55 +1,78 @@
 import { Link } from "react-router";
+import { useState, useEffect } from "react";
 import { ShoppingCart, DollarSign, Clock, Star, TrendingUp, Package, AlertCircle, Wallet } from "lucide-react";
+import { dashboardAPI } from "../../services/api";
 
 export function DashboardSeller() {
-  const stats = [
-    { icon: ShoppingCart, label: "Total Order", value: "45", color: "from-blue-500 to-blue-600" },
-    { icon: DollarSign, label: "Saldo", value: "Rp 2.5jt", color: "from-green-500 to-green-600" },
-    { icon: Clock, label: "Dalam Proses", value: "8", color: "from-yellow-500 to-yellow-600" },
-    { icon: Star, label: "Rating", value: "4.9", color: "from-purple-500 to-purple-600" },
+  const [stats, setStats] = useState({
+    total_orders: 0,
+    balance: 0,
+    active_orders: 0,
+    rating: 0,
+    pending_earnings: 0,
+  });
+  const [orders, setOrders] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = async () => {
+    try {
+      const data = await dashboardAPI.getSellerDashboard();
+      setStats(data.stats || {});
+      setOrders(data.active_orders || []);
+      setServices(data.services || []);
+    } catch (err) {
+      console.error('Failed to fetch dashboard:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
+  const formatRupiah = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+  const getStatusColor = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'bg-gray-100 text-gray-700',
+      paid: 'bg-blue-100 text-blue-700',
+      process: 'bg-yellow-100 text-yellow-700',
+      revision: 'bg-orange-100 text-orange-700',
+      completed: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+    return map[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'Menunggu',
+      paid: 'Dibayar',
+      process: 'Dalam Proses',
+      revision: 'Revisi',
+      completed: 'Selesai',
+      cancelled: 'Dibatalkan',
+    };
+    return map[status] || status;
+  };
+
+  const statCards = [
+    { icon: ShoppingCart, label: "Total Order", value: stats.total_orders, color: "from-blue-500 to-blue-600" },
+    { icon: DollarSign, label: "Saldo", value: formatRupiah(stats.balance), color: "from-green-500 to-green-600" },
+    { icon: Clock, label: "Dalam Proses", value: stats.active_orders, color: "from-yellow-500 to-yellow-600" },
+    { icon: Star, label: "Rating", value: stats.rating ? Number(stats.rating).toFixed(1) : '0.0', color: "from-purple-500 to-purple-600" },
   ];
 
-  const orders = [
-    {
-      id: 1,
-      orderId: "GRF-2026-04-005",
-      service: "Desain Logo Premium",
-      buyer: "PT Maju Jaya",
-      status: "Dalam Proses",
-      statusColor: "bg-blue-100 text-blue-700",
-      deadline: "20 Apr 2026",
-      amount: "Rp 400.000",
-    },
-    {
-      id: 2,
-      orderId: "GRF-2026-04-004",
-      service: "Desain Logo Standard",
-      buyer: "Rina Wijaya",
-      status: "Menunggu Review",
-      statusColor: "bg-yellow-100 text-yellow-700",
-      deadline: "19 Apr 2026",
-      amount: "Rp 250.000",
-    },
-  ];
-
-  const services = [
-    {
-      id: 1,
-      title: "Desain Logo Profesional",
-      orders: 45,
-      rating: 4.9,
-      status: "Aktif",
-      slots: "2/5 Tersedia",
-    },
-    {
-      id: 2,
-      title: "Brand Identity Package",
-      orders: 12,
-      rating: 5.0,
-      status: "Aktif",
-      slots: "0/3 Tersedia",
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-slate-500">Memuat dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-slate-50 py-8">
@@ -63,7 +86,7 @@ export function DashboardSeller() {
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, idx) => (
+          {statCards.map((stat, idx) => (
             <div key={idx} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-lg transition-shadow">
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4`}>
                 <stat.icon className="w-6 h-6 text-white" />
@@ -79,8 +102,8 @@ export function DashboardSeller() {
           <div className="flex justify-between items-center">
             <div>
               <p className="text-green-100 mb-2">Saldo Tersedia</p>
-              <p className="text-4xl font-bold">Rp 2.500.000</p>
-              <p className="text-green-100 mt-2">Saldo dalam proses: Rp 1.200.000</p>
+              <p className="text-4xl font-bold">{formatRupiah(stats.balance)}</p>
+              <p className="text-green-100 mt-2">Saldo dalam proses: {formatRupiah(stats.pending_earnings)}</p>
             </div>
             <Link to="/withdraw" className="bg-white text-green-600 px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-shadow flex items-center space-x-2">
               <Wallet className="w-5 h-5" />
@@ -97,34 +120,38 @@ export function DashboardSeller() {
               <span className="text-sm text-slate-600">{orders.length} order</span>
             </div>
 
-            <div className="space-y-4">
-              {orders.map((order) => (
-                <div key={order.id} className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">{order.orderId}</p>
-                      <h3 className="font-semibold text-slate-800">{order.service}</h3>
-                      <p className="text-sm text-slate-600 mt-1">Buyer: {order.buyer}</p>
+            {orders.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-8">Belum ada order aktif</p>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">GRF-{String(order.id).padStart(6, '0')}</p>
+                        <h3 className="font-semibold text-slate-800">{order.title}</h3>
+                        <p className="text-sm text-slate-600 mt-1">Buyer: {order.buyer_name}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {getStatusLabel(order.status)}
+                      </span>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.statusColor}`}>
-                      {order.status}
-                    </span>
+                    <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                      <div className="flex items-center text-sm text-slate-600">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {order.delivery_days} hari
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="font-bold text-blue-600">{formatRupiah(order.price)}</span>
+                        <Link to={`/order-detail/${order.id}`} className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                          Detail
+                        </Link>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                    <div className="flex items-center text-sm text-slate-600">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {order.deadline}
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <span className="font-bold text-blue-600">{order.amount}</span>
-                      <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                        Detail
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* My Services */}
@@ -136,48 +163,34 @@ export function DashboardSeller() {
               </Link>
             </div>
 
-            <div className="space-y-4">
-              {services.map((service) => (
-                <div key={service.id} className="border border-slate-200 rounded-xl p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold text-slate-800 mb-1">{service.title}</h3>
-                      <div className="flex items-center space-x-4 text-sm text-slate-600">
-                        <span className="flex items-center">
-                          <ShoppingCart className="w-4 h-4 mr-1" />
-                          {service.orders} order
-                        </span>
-                        <span className="flex items-center">
-                          <Star className="w-4 h-4 mr-1 fill-yellow-400 text-yellow-400" />
-                          {service.rating}
-                        </span>
+            {services.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-8">Belum ada jasa. <Link to="/profile/seller" className="text-blue-600">Tambah jasa</Link></p>
+            ) : (
+              <div className="space-y-4">
+                {services.map((service) => (
+                  <div key={service.id} className="border border-slate-200 rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold text-slate-800 mb-1">{service.title}</h3>
+                        <div className="flex items-center space-x-4 text-sm text-slate-600">
+                          <span className="flex items-center">
+                            <ShoppingCart className="w-4 h-4 mr-1" />
+                            {service.total_orders || 0} order
+                          </span>
+                          <span className="flex items-center">
+                            <Star className="w-4 h-4 mr-1 fill-yellow-400 text-yellow-400" />
+                            {service.rating ? Number(service.rating).toFixed(1) : '0.0'}
+                          </span>
+                        </div>
                       </div>
+                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                        Aktif
+                      </span>
                     </div>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                      {service.status}
-                    </span>
                   </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                    <div className="flex items-center text-sm">
-                      {service.slots.includes('0/') ? (
-                        <span className="flex items-center text-red-600">
-                          <AlertCircle className="w-4 h-4 mr-1" />
-                          Slot Penuh
-                        </span>
-                      ) : (
-                        <span className="text-slate-600">
-                          <Package className="w-4 h-4 mr-1 inline" />
-                          {service.slots}
-                        </span>
-                      )}
-                    </div>
-                    <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                      Edit
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -188,16 +201,11 @@ export function DashboardSeller() {
             <h3 className="text-xl font-bold mb-2 text-slate-800">Tingkatkan Performa</h3>
             <p className="text-slate-600">Lihat analitik dan insight jasa Anda</p>
           </div>
-
-          <Link
-            to="/profile/seller"
-            className="bg-white rounded-2xl p-6 border-2 border-slate-200 hover:border-blue-500 hover:shadow-lg transition-all"
-          >
+          <Link to="/profile/seller" className="bg-white rounded-2xl p-6 border-2 border-slate-200 hover:border-blue-500 hover:shadow-lg transition-all">
             <Package className="w-8 h-8 mb-3 text-purple-500" />
             <h3 className="text-xl font-bold mb-2 text-slate-800">Tambah Jasa Baru</h3>
             <p className="text-slate-600">Perluas portofolio jasa Anda</p>
           </Link>
-
           <div className="bg-white rounded-2xl p-6 border-2 border-slate-200 hover:border-blue-500 hover:shadow-lg transition-all">
             <Star className="w-8 h-8 mb-3 text-yellow-500" />
             <h3 className="text-xl font-bold mb-2 text-slate-800">Review & Rating</h3>
