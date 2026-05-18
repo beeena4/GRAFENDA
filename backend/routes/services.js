@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const ServiceController = require('../controllers/ServiceController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { uploadServiceImages } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -21,6 +22,17 @@ const createServiceValidation = [
   body('packages.*.features').optional().isArray()
 ];
 
+const parsePackages = (req, res, next) => {
+  if (typeof req.body.packages === 'string') {
+    try {
+      req.body.packages = req.body.packages ? JSON.parse(req.body.packages) : [];
+    } catch (err) {
+      req.body.packages = [];
+    }
+  }
+  next();
+};
+
 const updateServiceValidation = [
   body('title').optional().trim().isLength({ min: 5, max: 255 }),
   body('description').optional().trim().isLength({ min: 20 }),
@@ -38,8 +50,9 @@ router.get('/:id', ServiceController.getServiceById);
 // Seller routes
 router.use(authenticateToken);
 router.get('/seller/my-services', authorizeRoles('seller'), ServiceController.getSellerServices);
-router.post('/', authorizeRoles('seller'), createServiceValidation, ServiceController.createService);
-router.put('/:id', authorizeRoles('seller'), updateServiceValidation, ServiceController.updateService);
+router.post('/', authorizeRoles('seller'), uploadServiceImages, parsePackages, createServiceValidation, ServiceController.createService);
+router.put('/:id', authorizeRoles('seller'), uploadServiceImages, parsePackages, updateServiceValidation, ServiceController.updateService);
+router.post('/:id/image', authorizeRoles('seller'), uploadServiceImages, ServiceController.uploadServiceImage);
 router.delete('/:id', authorizeRoles('seller'), ServiceController.deleteService);
 
 module.exports = router;

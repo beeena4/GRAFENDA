@@ -21,7 +21,7 @@ export function ManageService() {
     title: '',
     category: '',
     description: '',
-    images: [] as string[],
+    images: [] as any[],
     packages: {
       basic: {
         name: 'Basic',
@@ -114,20 +114,24 @@ export function ManageService() {
     }));
 
     try {
+     const payload = new FormData();
+     payload.append('title', formData.title);
+     payload.append('category_id', String(category_id));
+     payload.append('description', formData.description);
+     payload.append('packages', JSON.stringify(packages));
+     // append first image if exists
+     if (formData.images.length > 0) {
+       formData.images.forEach((img, idx) => {
+         if (img instanceof File) {
+           payload.append('images', img);
+         }
+       });
+     }
+
      if (isEdit) {
-        await serviceAPI.updateService(Number(id), {
-          title: formData.title,
-          category_id,
-          description: formData.description,
-          packages,
-        });
+        await serviceAPI.updateService(Number(id), payload);
       } else {
-        await serviceAPI.createService({
-          title: formData.title,
-          category_id,
-          description: formData.description,
-          packages,
-        });
+        await serviceAPI.createService(payload);
       }
       navigate('/dashboard/seller');
     } catch (err: any) {
@@ -143,10 +147,15 @@ export function ManageService() {
   };
 
   const handleImageUpload = () => {
-    const dummyImage = "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400";
-    if (formData.images.length < 5) {
-      setFormData({ ...formData, images: [...formData.images, dummyImage] });
-    }
+    // trigger hidden file input
+    const el = document.getElementById('service-image-input') as HTMLInputElement | null;
+    el?.click();
+  };
+
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files) return;
+    const fileArr = Array.from(files).slice(0, 5 - formData.images.length);
+    setFormData({ ...formData, images: [...formData.images, ...fileArr] });
   };
 
   const removeImage = (index: number) => {
@@ -261,7 +270,7 @@ export function ManageService() {
                   {formData.images.map((img, idx) => (
                     <div key={idx} className="relative aspect-square">
                       <img
-                        src={img}
+                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
                         alt={`Service ${idx + 1}`}
                         className="w-full h-full object-cover rounded-lg border-2 border-slate-200"
                       />
@@ -274,6 +283,7 @@ export function ManageService() {
                       </button>
                     </div>
                   ))}
+                  <input id="service-image-input" type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFilesSelected(e.target.files)} />
                   {formData.images.length < 5 && (
                     <button
                       type="button"

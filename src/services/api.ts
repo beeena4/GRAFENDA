@@ -117,6 +117,23 @@ export const dashboardAPI = {
 
 
 
+export const profileAPI = {
+  getSellerPortfolio: async (userId: number) => {
+    const response = await api.get(`/profile/portfolio/${userId}`);
+    return response.data.data;
+  },
+
+  addSellerPortfolio: async (formData: FormData) => {
+    const response = await api.post('/profile/portfolio', formData);
+    return response.data.data;
+  },
+
+  deleteSellerPortfolio: async (portfolioId: number) => {
+    const response = await api.delete(`/profile/portfolio/${portfolioId}`);
+    return response.data.data;
+  }
+};
+
 export const serviceAPI = {
   createService: async (data: any) => {
   try {

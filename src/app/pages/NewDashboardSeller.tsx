@@ -149,8 +149,10 @@ export function NewDashboardSeller() {
         <div className="grid lg:grid-cols-3 gap-6">
           {myServices.map((service) => (
             <div key={service.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-              {service.image && (
-                <img src={service.image} alt={service.title} className="w-full h-48 object-cover" />
+              {service.image ? (
+                <img src={service.image.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${service.image}` : service.image} alt={service.title} className="w-full h-48 object-cover" />
+              ) : (
+                <div className="w-full h-48 bg-slate-100 flex items-center justify-center text-slate-400">No Image</div>
               )}
               <div className="p-5">
                 <h3 className="font-semibold text-slate-800 line-clamp-2 mb-4">{service.title}</h3>
