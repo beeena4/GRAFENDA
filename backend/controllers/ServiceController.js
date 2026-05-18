@@ -136,6 +136,23 @@ class ServiceController {
         packages
       } = req.body;
 
+      let parsedPackages = [];
+      if (typeof packages === 'string') {
+        try {
+          parsedPackages = packages ? JSON.parse(packages) : [];
+        } catch (parseError) {
+          console.warn('CREATE SERVICE: Failed to parse packages JSON', parseError);
+          parsedPackages = [];
+        }
+      } else if (Array.isArray(packages)) {
+        parsedPackages = packages;
+      }
+
+      let imageUrl = null;
+      if (req.files && req.files.length > 0) {
+        imageUrl = `/uploads/${req.files[0].filename}`;
+      }
+
       // Create service
       const serviceId =
         await Service.create({
@@ -143,19 +160,17 @@ class ServiceController {
           category_id,
           title,
           description,
-          tags
+          tags,
+          image_url: imageUrl
         });
 
       // Create packages
-      if (packages && packages.length > 0) {
-
-        for (const pkg of packages) {
-
+      if (Array.isArray(parsedPackages) && parsedPackages.length > 0) {
+        for (const pkg of parsedPackages) {
           await ServicePackage.create({
             service_id: serviceId,
             ...pkg
           });
-
         }
       }
 
@@ -244,7 +259,21 @@ class ServiceController {
       }
 
       // Frontend data
-      const updateData = req.body;
+      const updateData = { ...req.body };
+      if (typeof updateData.packages === 'string') {
+        try {
+          updateData.packages = updateData.packages ? JSON.parse(updateData.packages) : [];
+        } catch (parseError) {
+          console.warn('UPDATE SERVICE: Failed to parse packages JSON', parseError);
+          updateData.packages = [];
+        }
+      } else if (!Array.isArray(updateData.packages)) {
+        updateData.packages = updateData.packages || [];
+      }
+
+      if (req.files && req.files.length > 0) {
+        updateData.image_url = `/uploads/${req.files[0].filename}`;
+      }
 
       console.log(
         'REQ BODY UPDATE:',
@@ -252,22 +281,20 @@ class ServiceController {
       );
 
       // Update
-     await Service.update(id, updateData);
+      await Service.update(id, updateData);
 
       // Update packages jika ada
-      if (updateData.packages && updateData.packages.length > 0) {
+      if (Array.isArray(updateData.packages) && updateData.packages.length > 0) {
 
         // Hapus package lama
         await ServicePackage.deleteByServiceId(id);
 
         // Insert package baru
         for (const pkg of updateData.packages) {
-
           await ServicePackage.create({
             service_id: id,
             ...pkg
           });
-
         }
       }
 
@@ -410,6 +437,64 @@ class ServiceController {
         error
       );
 
+      sendError(
+        res,
+        error.message || 'Internal server error',
+        500
+      );
+    }
+  }
+
+  // Upload or replace service image
+  static async uploadServiceImage(req, res) {
+    try {
+      const { id } = req.params;
+
+      const sellerProfile =
+        req.user.role === 'seller'
+          ? await require('../models/SellerProfile')
+              .findByUserId(req.user.id)
+          : null;
+
+      const sellerId = sellerProfile?.id;
+
+      if (!sellerId) {
+        return sendError(
+          res,
+          'Seller profile not found',
+          404
+        );
+      }
+
+      const service = await Service.findByIdAny(id);
+      if (!service || service.seller_id !== sellerId) {
+        return sendError(
+          res,
+          'Service not found or access denied',
+          404
+        );
+      }
+
+      if (!req.files || req.files.length === 0) {
+        return sendError(
+          res,
+          'No image uploaded',
+          400
+        );
+      }
+
+      const imageUrl = `/uploads/${req.files[0].filename}`;
+      await Service.updateImage(id, imageUrl);
+
+      const updatedService = await Service.findById(id);
+
+      sendSuccess(
+        res,
+        'Service image uploaded successfully',
+        updatedService
+      );
+    } catch (error) {
+      console.error('UPLOAD SERVICE IMAGE ERROR:', error);
       sendError(
         res,
         error.message || 'Internal server error',

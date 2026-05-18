@@ -111,6 +111,7 @@ const createMissingTables = async () => {
           title VARCHAR(255) NOT NULL,
           description TEXT NOT NULL,
           tags TEXT,
+          image_url VARCHAR(255),
           is_featured BOOLEAN DEFAULT FALSE,
           is_active BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -123,6 +124,11 @@ const createMissingTables = async () => {
       `);
       console.log('✅ Tabel services berhasil dibuat');
     } else {
+      const [columns] = await connection.query(`SHOW COLUMNS FROM services LIKE 'image_url'`);
+      if (columns.length === 0) {
+        console.log('📦 Menambahkan kolom image_url ke tabel services...');
+        await connection.query(`ALTER TABLE services ADD COLUMN image_url VARCHAR(255)`);
+      }
       console.log('✅ Tabel services sudah ada');
     }
     

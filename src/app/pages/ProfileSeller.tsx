@@ -4,7 +4,9 @@ import {
   User, Mail, Phone, MapPin, Edit, Save, ShoppingCart,
   Star, DollarSign, Package, FileText, ArrowLeft, Palette, Plus, X
 } from "lucide-react";
-import { authAPI, dashboardAPI } from "../../services/api";
+import { authAPI, dashboardAPI, profileAPI } from "../../services/api";
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000';
 
 export function ProfileSeller() {
   const navigate = useNavigate();
@@ -36,14 +38,14 @@ export function ProfileSeller() {
   const [orders, setOrders] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
 
-  const [artStyles, setArtStyles] = useState([
-    { id: 1, name: 'Minimalist', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400' },
-    { id: 2, name: 'Modern', image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400' },
-    { id: 3, name: 'Vintage', image: 'https://images.unsplash.com/photo-1509395176047-4a66953fd231?w=400' },
-  ]);
-
+  const [artStyles, setArtStyles] = useState<any[]>([]);
   const [showAddStyle, setShowAddStyle] = useState(false);
-  const [newStyle, setNewStyle] = useState({ name: '', image: '' });
+  const [newStyle, setNewStyle] = useState({ title: '', description: '', project_url: '', file: null as File | null });
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,6 +65,19 @@ export function ProfileSeller() {
           bio: sp.bio || '',                 // dari seller_profiles
           avatar: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'S')}`,
         });
+        setAvatarPreview(user.avatar ? (user.avatar.startsWith('/') ? `${API_BASE_URL}${user.avatar}` : user.avatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'S')}`);
+
+        if (user.id) {
+          const portfolioResponse = await profileAPI.getSellerPortfolio(user.id);
+          const portfolioItems = (portfolioResponse.portfolios || []).map((item: any) => ({
+            id: item.id,
+            name: item.title,
+            image: item.image_url?.startsWith('/') ? `${API_BASE_URL}${item.image_url}` : item.image_url,
+            description: item.description,
+            project_url: item.project_url
+          }));
+          setArtStyles(portfolioItems);
+        }
 
         const dashboard = await dashboardAPI.getSellerDashboard();
         const s = dashboard.stats || {};
@@ -91,13 +106,20 @@ export function ProfileSeller() {
       setSaving(true);
       setErrorMsg('');
 
-      // 1. Update tabel users (full_name, phone)
-      await authAPI.updateProfile({
-        full_name: profile.name,
-        phone: profile.phone || null,
-      });
+      let updatedUser: any;
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('full_name', profile.name);
+        formData.append('phone', profile.phone || '');
+        formData.append('avatar', avatarFile);
+        updatedUser = await authAPI.updateProfile(formData);
+      } else {
+        updatedUser = await authAPI.updateProfile({
+          full_name: profile.name,
+          phone: profile.phone || null,
+        });
+      }
 
-      // 2. Update tabel seller_profiles (location, skills, portfolio_url, bio)
       await authAPI.updateSellerProfile({
         location: profile.location || null,
         skills: profile.skills || null,
@@ -105,7 +127,12 @@ export function ProfileSeller() {
         bio: profile.bio || null,
       });
 
+      if (updatedUser?.avatar) {
+        setProfile((prev) => ({ ...prev, avatar: updatedUser.avatar }));
+      }
+
       setIsEditing(false);
+      setAvatarFile(null);
       setSuccessMsg('Profil berhasil disimpan!');
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err: any) {
@@ -118,16 +145,81 @@ export function ProfileSeller() {
     }
   };
 
-  const handleAddStyle = () => {
-    if (newStyle.name && newStyle.image) {
-      setArtStyles([...artStyles, { id: artStyles.length + 1, ...newStyle }]);
-      setNewStyle({ name: '', image: '' });
+  const handleAddStyle = async () => {
+    try {
+      setUploadError('');
+      setUploadSuccess('');
+
+      if (!newStyle.title || !newStyle.file) {
+        setUploadError('Judul dan foto portofolio wajib diisi.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('title', newStyle.title);
+      formData.append('description', newStyle.description || '');
+      if (newStyle.project_url) {
+        formData.append('project_url', newStyle.project_url);
+      }
+      formData.append('portfolio', newStyle.file);
+
+      const response = await profileAPI.addSellerPortfolio(formData);
+      const createdPortfolios = (response.portfolios || []).map((item: any) => ({
+        id: item.id,
+        name: item.title,
+        image: item.image_url?.startsWith('/') ? `${API_BASE_URL}${item.image_url}` : item.image_url,
+        description: item.description,
+        project_url: item.project_url
+      }));
+
+      setArtStyles([createdPortfolios[0], ...artStyles]);
+      setNewStyle({ title: '', description: '', project_url: '', file: null });
+      setPreviewUrl('');
       setShowAddStyle(false);
+      setUploadSuccess('Foto portofolio berhasil diunggah.');
+      setTimeout(() => setUploadSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Upload portofolio gagal:', err);
+      const msg = err.response?.data?.message || 'Gagal mengunggah portofolio';
+      setUploadError(msg);
+      setTimeout(() => setUploadError(''), 4000);
     }
   };
 
-  const handleRemoveStyle = (id: number) => {
-    setArtStyles(artStyles.filter(style => style.id !== id));
+  const handleRemoveStyle = async (id: number) => {
+    try {
+      await profileAPI.deleteSellerPortfolio(id);
+      setArtStyles(artStyles.filter(style => style.id !== id));
+    } catch (err: any) {
+      console.error('Hapus portofolio gagal:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!avatarFile) {
+      setAvatarPreview(profile.avatar ? (profile.avatar.startsWith('/') ? `${API_BASE_URL}${profile.avatar}` : profile.avatar) : '');
+    }
+  }, [profile.avatar, avatarFile]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarFile) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview, avatarFile]);
+
+  const profileAvatar = avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'S')}`;
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setAvatarFile(file);
+    if (file) {
+      const preview = URL.createObjectURL(file);
+      setAvatarPreview(preview);
+    } else {
+      setAvatarPreview(profile.avatar ? (profile.avatar.startsWith('/') ? `${API_BASE_URL}${profile.avatar}` : profile.avatar) : '');
+    }
   };
 
   if (loading) return (
@@ -242,45 +334,68 @@ export function ProfileSeller() {
                   <Palette className="w-5 h-5 mr-2 text-blue-600" />
                   Portofolio Art Style
                 </h3>
-                {isEditing && (
-                  <button onClick={() => setShowAddStyle(true)} className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                    <Plus className="w-4 h-4" />
-                    <span>Tambah</span>
-                  </button>
-                )}
+                <button onClick={() => setShowAddStyle(true)} className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                  <Plus className="w-4 h-4" />
+                  <span>Tambah</span>
+                </button>
               </div>
 
               {showAddStyle && (
                 <div className="bg-white rounded-xl p-4 mb-4 border-2 border-blue-200">
-                  <h4 className="font-semibold text-slate-800 mb-3">Tambah Art Style Baru</h4>
+                  <h4 className="font-semibold text-slate-800 mb-3">Tambah Portofolio Art Style</h4>
                   <div className="space-y-3">
-                    <input type="text" value={newStyle.name} onChange={(e) => setNewStyle({ ...newStyle, name: e.target.value })} placeholder="Nama Style (e.g., Minimalist, Modern)" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                    <input type="url" value={newStyle.image} onChange={(e) => setNewStyle({ ...newStyle, image: e.target.value })} placeholder="URL Gambar Portfolio" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <input type="text" value={newStyle.title} onChange={(e) => setNewStyle({ ...newStyle, title: e.target.value })} placeholder="Judul portofolio" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <textarea value={newStyle.description} onChange={(e) => setNewStyle({ ...newStyle, description: e.target.value })} placeholder="Deskripsi singkat (opsional)" rows={3} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" />
+                    <input type="url" value={newStyle.project_url} onChange={(e) => setNewStyle({ ...newStyle, project_url: e.target.value })} placeholder="Link proyek atau portofolio (opsional)" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Pilih foto</label>
+                      <input type="file" accept="image/*" onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setNewStyle({ ...newStyle, file });
+                        setPreviewUrl(file ? URL.createObjectURL(file) : '');
+                      }} className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-600 file:text-white file:font-semibold hover:file:bg-blue-700" />
+                      <p className="text-xs text-slate-500 mt-2">Hanya file gambar (jpg, png, gif). Maks 5MB.</p>
+                    </div>
+                    {previewUrl && (
+                      <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <img src={previewUrl} alt="Preview portofolio" className="w-full h-48 object-cover" />
+                      </div>
+                    )}
+                    {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+                    {uploadSuccess && <p className="text-sm text-green-600">{uploadSuccess}</p>}
                     <div className="flex space-x-2">
                       <button onClick={handleAddStyle} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Simpan</button>
-                      <button onClick={() => { setShowAddStyle(false); setNewStyle({ name: '', image: '' }); }} className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300">Batal</button>
+                      <button onClick={() => { setShowAddStyle(false); setNewStyle({ title: '', description: '', project_url: '', file: null }); setPreviewUrl(''); setUploadError(''); }} className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300">Batal</button>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="grid md:grid-cols-3 gap-4">
-                {artStyles.map((style) => (
-                  <div key={style.id} className="relative group transition-all duration-300 hover:-translate-y-1">
-                    <div className="aspect-square rounded-xl overflow-hidden border-2 border-slate-200 hover:border-blue-500 transition-colors">
-                      <img src={style.image} alt={style.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent rounded-xl flex items-end p-4">
-                      <p className="text-white font-semibold">{style.name}</p>
-                    </div>
-                    {isEditing && (
-                      <button onClick={() => handleRemoveStyle(style.id)} className="absolute top-2 right-2 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {artStyles.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+                  <p className="font-medium text-slate-700 mb-2">Belum ada portofolio art style</p>
+                  <p className="text-sm">Tambahkan foto portofolio untuk menampilkan gaya karya Anda.</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-3 gap-4">
+                  {artStyles.map((style) => (
+                    <div key={style.id} className="relative group transition-all duration-300 hover:-translate-y-1">
+                      <div className="aspect-square rounded-xl overflow-hidden border-2 border-slate-200 hover:border-blue-500 transition-colors">
+                        <img src={style.image} alt={style.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent rounded-xl flex items-end p-4">
+                        <div>
+                          <p className="text-white font-semibold">{style.name}</p>
+                          {style.description && <p className="text-xs text-slate-100/90 mt-1">{style.description}</p>}
+                        </div>
+                      </div>
+                      <button onClick={() => handleRemoveStyle(style.id)} className="absolute top-3 right-3 w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center opacity-90 hover:opacity-100 transition-opacity shadow-lg">
                         <X className="w-4 h-4" />
                       </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -344,6 +459,17 @@ export function ProfileSeller() {
             )}
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Foto Profil</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  disabled={!isEditing}
+                  className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-600 file:text-white file:font-semibold hover:file:bg-blue-700"
+                />
+                <p className="text-xs text-slate-500 mt-2">Unggah foto profil baru untuk mengganti gambar saat ini.</p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Nama</label>
                 <input
@@ -440,7 +566,7 @@ export function ProfileSeller() {
 
         <div className="bg-white rounded-2xl shadow-sm p-8 mb-6 transition-all duration-300 hover:shadow-md">
           <div className="flex items-center space-x-6">
-            <img src={profile.avatar} alt={profile.name} className="w-24 h-24 rounded-full border-4 border-blue-100" />
+            <img src={profileAvatar} alt={profile.name} className="w-24 h-24 rounded-full border-4 border-blue-100 object-cover" />
             <div>
               <h1 className="text-3xl font-bold text-slate-800">{profile.name}</h1>
               <p className="text-slate-600 mt-1">{profile.email}</p>

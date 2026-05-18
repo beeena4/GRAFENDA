@@ -111,7 +111,7 @@ router.get('/seller', authenticateToken, async (req, res) => {
     );
 
     const services = await db.query(
-      `SELECT s.id, s.title,
+      `SELECT s.id, s.title, s.image_url as image,
               sp.price,
               COUNT(DISTINCT o.id) as total_orders,
               AVG(r.rating) as rating

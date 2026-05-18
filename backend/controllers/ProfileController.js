@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const SellerProfile = require('../models/SellerProfile');
+const Portfolio = require('../models/Portfolio');
 const { sendSuccess, sendError } = require('../utils/helpers');
 
 class ProfileController {
@@ -90,8 +91,10 @@ class ProfileController {
       // Normalize skills: terima string atau array
       const normalizeSkills = (val) => {
         if (val === undefined || val === null) return null;
-        if (Array.isArray(val)) return JSON.stringify(val);
-        return JSON.stringify(val.split(',').map(s => s.trim()).filter(Boolean));
+        if (Array.isArray(val)) {
+          return val.map(s => String(s).trim()).filter(Boolean).join(', ');
+        }
+        return String(val).split(',').map(s => s.trim()).filter(Boolean).join(', ');
       };
 
       let sellerProfile = await SellerProfile.findByUserId(userId);
@@ -129,6 +132,96 @@ class ProfileController {
     }
   }
 
+  // Add seller portfolio entry
+  static async addSellerPortfolio(req, res) {
+    try {
+      const userId = req.user.id;
+      if (req.user.role !== 'seller') {
+        return sendError(res, 'Access denied', 403);
+      }
+
+      const sellerProfile = await SellerProfile.findByUserId(userId);
+      if (!sellerProfile) {
+        return sendError(res, 'Seller profile not found', 404);
+      }
+
+      const { title, description, project_url } = req.body;
+      if (!title || title.trim() === '') {
+        return sendError(res, 'Judul portofolio diperlukan', 400);
+      }
+
+      if (!req.files || req.files.length === 0) {
+        return sendError(res, 'File gambar portofolio diperlukan', 400);
+      }
+
+      const createdPortfolios = [];
+      for (const file of req.files) {
+        const imageUrl = `/uploads/${file.filename}`;
+        const portfolioId = await Portfolio.create({
+          seller_id: sellerProfile.id,
+          title: title.trim(),
+          description: description || null,
+          image_url: imageUrl,
+          project_url: project_url || null
+        });
+
+        const portfolioItem = {
+          id: portfolioId,
+          seller_id: sellerProfile.id,
+          title: title.trim(),
+          description: description || null,
+          image_url: imageUrl,
+          project_url: project_url || null,
+          created_at: new Date().toISOString()
+        };
+        createdPortfolios.push(portfolioItem);
+      }
+
+      sendSuccess(res, 'Portofolio berhasil ditambahkan', { portfolios: createdPortfolios });
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
+  static async deleteSellerPortfolio(req, res) {
+    try {
+      const userId = req.user.id;
+      if (req.user.role !== 'seller') {
+        return sendError(res, 'Access denied', 403);
+      }
+
+      const sellerProfile = await SellerProfile.findByUserId(userId);
+      if (!sellerProfile) {
+        return sendError(res, 'Seller profile not found', 404);
+      }
+
+      const portfolioId = req.params.id;
+      const portfolioItem = await Portfolio.findById(portfolioId, sellerProfile.id);
+      if (!portfolioItem) {
+        return sendError(res, 'Portofolio tidak ditemukan atau tidak dapat dihapus', 404);
+      }
+
+      const deletedRows = await Portfolio.deleteById(portfolioId, sellerProfile.id);
+      if (!deletedRows) {
+        return sendError(res, 'Portofolio tidak ditemukan atau tidak dapat dihapus', 404);
+      }
+
+      const fs = require('fs');
+      const path = require('path');
+      if (portfolioItem.image_url) {
+        const filename = portfolioItem.image_url.replace(/^\/uploads\//, '');
+        const filePath = path.join(__dirname, '../uploads', filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      sendSuccess(res, 'Portofolio berhasil dihapus');
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
   // Get seller profile by user ID
   static async getSellerProfile(req, res) {
     try {
@@ -147,6 +240,19 @@ class ProfileController {
       const Review = require('../models/Review');
       const stats = await Review.getSellerStats(sellerProfile.id);
 
+      const parseSkills = (value) => {
+        if (!value) return '';
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            return parsed.filter(Boolean).join(', ');
+          }
+        } catch (err) {
+          // not JSON, continue
+        }
+        return String(value);
+      };
+
       const response = {
         user: {
           id: user.id,
@@ -154,7 +260,10 @@ class ProfileController {
           avatar: user.avatar,
           created_at: user.created_at
         },
-        seller_profile: sellerProfile,
+        seller_profile: {
+          ...sellerProfile,
+          skills: parseSkills(sellerProfile.skills)
+        },
         stats
       };
 
@@ -184,9 +293,11 @@ class ProfileController {
 
       const Review = require('../models/Review');
       const reviews = await Review.findBySellerId(sellerProfile.id, 1, 5);
+      const portfolios = await Portfolio.findBySellerId(sellerProfile.id);
 
       const response = {
         seller_profile: sellerProfile,
+        portfolios,
         services: services.services,
         reviews: reviews.reviews
       };

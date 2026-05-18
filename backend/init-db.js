@@ -87,6 +87,7 @@ const initDatabase = async () => {
         title VARCHAR(255) NOT NULL,
         description TEXT NOT NULL,
         tags TEXT,
+        image_url VARCHAR(255),
         is_featured BOOLEAN DEFAULT FALSE,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

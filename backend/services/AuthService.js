@@ -184,11 +184,25 @@ class AuthService {
     if (user.role === 'seller') {
       const sellerProfile = await SellerProfile.findByUserId(userId);
       if (sellerProfile) {
+        const parseSkills = (value) => {
+          if (!value) return '';
+          try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+              return parsed.filter(Boolean).join(', ');
+            }
+          } catch (err) {
+            // not JSON, continue
+          }
+          return String(value);
+        };
+
         profile.seller_profile = {
           bio: sellerProfile.bio,
-          skills: sellerProfile.skills,
+          skills: parseSkills(sellerProfile.skills),
           experience_years: sellerProfile.experience_years,
           portfolio_url: sellerProfile.portfolio_url,
+          location: sellerProfile.location,
           rating: sellerProfile.rating,
           total_reviews: sellerProfile.total_reviews,
           total_orders: sellerProfile.total_orders,

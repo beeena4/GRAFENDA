@@ -8,13 +8,14 @@ class Service {
       category_id,
       title,
       description,
-      tags
+      tags,
+      image_url
     } = serviceData;
 
     const sql = `
       INSERT INTO services 
-      (seller_id, category_id, title, description, tags) 
-      VALUES (?, ?, ?, ?, ?)
+      (seller_id, category_id, title, description, tags, image_url) 
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const result = await query(sql, [
@@ -22,7 +23,8 @@ class Service {
       category_id,
       title,
       description,
-      tags ?? null
+      tags ?? null,
+      image_url ?? null
     ]);
 
     return result.insertId;
@@ -32,6 +34,7 @@ class Service {
   static async findById(id) {
     const sql = `
       SELECT 
+        s.image_url as image,
         s.*, 
         c.name as category_name, 
         sp.user_id as seller_user_id, 
@@ -55,6 +58,7 @@ class Service {
 
     const sql = `
       SELECT 
+        s.image_url as image,
         s.*, 
         c.name as category_name
       FROM services s
@@ -132,6 +136,7 @@ class Service {
         category_id = ?,
         is_featured = ?,
         is_active = ?,
+        image_url = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
@@ -153,6 +158,7 @@ class Service {
       category_id ?? null,
       is_featured ?? false,
       is_active ?? true,
+      updateData.image_url ?? existingService.image_url ?? null,
       id
     ]);
   }
@@ -174,6 +180,7 @@ class Service {
   static async search(filters = {}, page = 1, limit = 20) {
     let sql = `
       SELECT 
+        s.image_url as image,
         s.*, 
         c.name as category_name, 
         sp.user_id as seller_user_id, 
@@ -341,20 +348,30 @@ class Service {
   }
 
   static async findByIdAny(id) {
-  const sql = `
-    SELECT s.*, sp.user_id as seller_user_id
-    FROM services s
-    JOIN seller_profiles sp ON s.seller_id = sp.id
-    WHERE s.id = ?
-  `;
-  const services = await query(sql, [id]);
-  return services[0];
-}
+    const sql = `
+      SELECT s.*, sp.user_id as seller_user_id
+      FROM services s
+      JOIN seller_profiles sp ON s.seller_id = sp.id
+      WHERE s.id = ?
+    `;
+    const services = await query(sql, [id]);
+    return services[0];
+  }
+
+  static async updateImage(id, imageUrl) {
+    const sql = `
+      UPDATE services
+      SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
+    await query(sql, [imageUrl, id]);
+  }
 
   // Featured services
   static async getFeatured(limit = 10) {
     const sql = `
       SELECT 
+        s.image_url as image,
         s.*, 
         c.name as category_name, 
         sp.user_id as seller_user_id, 
