@@ -298,19 +298,20 @@ export function NewDashboardSeller() {
       </aside>
 
       <main className="flex-1 ml-[260px] p-8">
-        <div className="mb-8">
-          <h1 className="text-[34px] leading-tight font-bold text-slate-800">Dashboard Freelancer</h1>
-          <p className="text-slate-500 mt-1">Kelola jasa dan order Anda dengan mudah</p>
-        </div>
-        <div className="grid md:grid-cols-4 gap-5 mb-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl leading-tight font-bold text-slate-800">Dashboard Freelancer</h1>
+            <p className="text-slate-500 mt-1">Kelola jasa dan order Anda dengan mudah</p>
+          </div>
+          <div className="grid md:grid-cols-4 gap-5 mb-8">
           {statCards.map((stat, idx) => (
             <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500 hover:shadow-lg cursor-pointer">
               <div className={`w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center mb-4`}>
                 <stat.icon className="w-5 h-5 text-white" />
               </div>
               <p className="text-sm text-slate-500 mb-1">{stat.label}</p>
-              <h3 className="text-2xl font-bold text-slate-800">{stat.value}</h3>
-              <p className="text-xs text-slate-400 mt-1">{stat.subtext}</p>
+              <h3 className="text-3xl font-bold text-slate-800">{stat.value}</h3>
+              <p className="text-sm text-slate-400 mt-1">{stat.subtext}</p>
             </div>
           ))}
         </div>
@@ -325,6 +326,7 @@ export function NewDashboardSeller() {
         {activeTab === 'orders' && renderOrders()}
         {activeTab === 'services' && renderServices()}
         {activeTab === 'earnings' && renderEarnings()}
+      </div>
       </main>
     </div>
   );

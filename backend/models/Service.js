@@ -186,9 +186,11 @@ class Service {
         sp.user_id as seller_user_id, 
         u.full_name as seller_name, 
         u.avatar as seller_avatar, 
-        sp.rating as seller_rating
+        sp.rating as seller_rating,
+        MIN(pkg_min.price) as price
       FROM services s
       LEFT JOIN categories c ON s.category_id = c.id
+      LEFT JOIN service_packages pkg_min ON pkg_min.service_id = s.id
       JOIN seller_profiles sp ON s.seller_id = sp.id
       JOIN users u ON sp.user_id = u.id
       WHERE s.is_active = true 

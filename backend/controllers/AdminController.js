@@ -110,12 +110,57 @@ class AdminController {
         return sendError(res, 'User not found', 404);
       }
 
-      // Update user in database
+      // Build update query with only provided fields
       const { query } = require('../config/database');
-      await query('UPDATE users SET role = ?, is_verified = ? WHERE id = ?', [role, is_verified, id]);
+      const updateFields = [];
+      const updateParams = [];
+
+      if (typeof role !== 'undefined') {
+        updateFields.push('role = ?');
+        updateParams.push(role);
+      }
+
+      if (typeof is_verified !== 'undefined') {
+        updateFields.push('is_verified = ?');
+        updateParams.push(is_verified ? 1 : 0);
+      }
+
+      if (updateFields.length === 0) {
+        return sendError(res, 'No valid fields to update', 400);
+      }
+
+      await query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`, [...updateParams, id]);
 
       const updatedUser = await User.findById(id);
       sendSuccess(res, 'User updated successfully', updatedUser);
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
+  static async getUserById(req, res) {
+    try {
+      const { id } = req.params;
+      const user = await User.findById(id);
+      if (!user) {
+        return sendError(res, 'User not found', 404);
+      }
+      sendSuccess(res, 'User retrieved successfully', user);
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
+  static async deleteUser(req, res) {
+    try {
+      const { id } = req.params;
+      const user = await User.findById(id);
+      if (!user) {
+        return sendError(res, 'User not found', 404);
+      }
+      const { query } = require('../config/database');
+      await query('DELETE FROM users WHERE id = ?', [id]);
+      sendSuccess(res, 'User deleted successfully', { id });
     } catch (error) {
       sendError(res, error.message, 500);
     }

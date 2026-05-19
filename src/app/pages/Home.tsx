@@ -1,8 +1,10 @@
 import { Link, useNavigate } from "react-router";
+import { useState } from "react";
 import { Search, Sparkles, Pen, Video, Palette, TrendingUp, Shield, Clock, Star, ChevronRight } from "lucide-react";
 
 export function Home() {
   const navigate = useNavigate();
+  const [homeSearchQuery, setHomeSearchQuery] = useState('');
 
   const categories = [
     { icon: Palette, name: "Desain Grafis", count: "2,500+ jasa", color: "from-blue-500 to-blue-600" },
@@ -93,11 +95,13 @@ export function Home() {
                     type="text"
                     placeholder="Coba: 'Desain logo modern untuk kafe' atau 'Edit video YouTube'"
                     className="flex-1 px-2 py-3 outline-none"
-                    onKeyDown={(e) => e.key === 'Enter' && navigate('/search')}
+                    value={homeSearchQuery}
+                    onChange={(e) => setHomeSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(`/search?search=${encodeURIComponent(homeSearchQuery.trim())}`)}
                   />
                 </div>
                 <button
-                  onClick={() => navigate('/search')}
+                  onClick={() => navigate(`/search?search=${encodeURIComponent(homeSearchQuery.trim())}`)}
                   className="bg-gradient-to-r from-blue-600 to-purple-500 text-white px-8 py-3 rounded-xl hover:shadow-lg transition-shadow flex items-center space-x-2"
                 >
                   <Search className="w-5 h-5" />
@@ -123,7 +127,7 @@ export function Home() {
             {categories.map((cat, idx) => (
               <Link
                 key={idx}
-                to="/search"
+                to={`/search?search=${encodeURIComponent(cat.name)}`}
                 className="group p-8 rounded-2xl bg-gradient-to-br hover:shadow-xl transition-all duration-300 border border-slate-100"
               >
                 <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${cat.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>

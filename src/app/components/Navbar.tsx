@@ -1,6 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router";
 import { Search, Bell, User, LogOut, MessageCircle } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -12,11 +13,12 @@ export function Navbar() {
   ]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const isLoggedIn = location.pathname.includes('/dashboard') || location.pathname.includes('/profile');
-  const userRole = location.pathname.includes('/dashboard/seller') || location.pathname.includes('/profile/seller') ? 'seller' :
-                   location.pathname.includes('/dashboard/user') || location.pathname.includes('/profile/user') ? 'user' : null;
+  const { user, logout } = useAuth();
+  const isLoggedIn = Boolean(user);
+  const userRole = user?.role || null;
 
   const handleLogout = () => {
+    logout();
     navigate('/');
     setShowProfileMenu(false);
   };
