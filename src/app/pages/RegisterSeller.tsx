@@ -117,7 +117,7 @@ export function RegisterSeller() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">No. Telepon (Opsional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">No. Telepon</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
@@ -146,7 +146,7 @@ export function RegisterSeller() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Link Portofolio (Opsional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Link Portofolio</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input

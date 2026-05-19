@@ -223,11 +223,11 @@ class AuthService {
       throw new Error('User not found');
     }
 
-    if (updateData.full_name || updateData.phone || updateData.avatar) {
+    if (updateData.full_name !== undefined || updateData.phone !== undefined || updateData.avatar !== undefined) {
       await User.updateProfile(userId, {
-        full_name: updateData.full_name,
-        phone: updateData.phone,
-        avatar: updateData.avatar
+        full_name: updateData.full_name !== undefined ? updateData.full_name : user.full_name,
+        phone: updateData.phone !== undefined ? updateData.phone : user.phone,
+        avatar: updateData.avatar !== undefined ? updateData.avatar : user.avatar
       });
     }
 

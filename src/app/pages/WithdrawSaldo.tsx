@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { useState } from "react";
-import { ArrowLeft, Wallet, Building2, CreditCard, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowLeft, Wallet, Building2, AlertCircle, CheckCircle } from "lucide-react";
+import { dashboardAPI, withdrawAPI } from "../../services/api";
 
 export function WithdrawSaldo() {
   const navigate = useNavigate();
@@ -16,16 +17,66 @@ export function WithdrawSaldo() {
     phoneNumber: '',
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const availableBalance = 2500000;
   const minWithdraw = 50000;
 
-  const handleWithdraw = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadBalance() {
+      setIsLoadingBalance(true);
+      try {
+        const dashboard = await dashboardAPI.getSellerDashboard();
+        setAvailableBalance(dashboard.stats.balance ?? 0);
+      } catch (err: any) {
+        console.error(err);
+        setError('Gagal memuat saldo. Silakan muat ulang halaman.');
+      } finally {
+        setIsLoadingBalance(false);
+      }
+    }
+
+    loadBalance();
+  }, []);
+
+  const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowSuccess(true);
-    setTimeout(() => {
-      navigate('/dashboard/seller');
-    }, 2000);
+    setError(null);
+
+    const amountValue = Number(amount);
+    if (!amountValue || isNaN(amountValue) || amountValue < minWithdraw || (availableBalance !== null && amountValue > availableBalance)) {
+      setError(`Masukkan jumlah penarikan antara Rp ${minWithdraw.toLocaleString('id-ID')} dan Rp ${availableBalance?.toLocaleString('id-ID') ?? '0'}`);
+      return;
+    }
+
+    const payload = method === 'bank'
+      ? {
+          amount: amountValue,
+          bank_name: bankDetails.bankName,
+          account_number: bankDetails.accountNumber,
+          account_holder: bankDetails.accountName,
+        }
+      : {
+          amount: amountValue,
+          bank_name: ewalletDetails.provider,
+          account_number: ewalletDetails.phoneNumber,
+          account_holder: 'E-Wallet',
+        };
+
+    try {
+      setIsSubmitting(true);
+      await withdrawAPI.requestWithdraw(payload);
+      setShowSuccess(true);
+      setSuccessMessage(`Permintaan penarikan saldo sebesar Rp ${amountValue.toLocaleString('id-ID')} sedang diproses.`);
+      setAvailableBalance((prev) => (prev !== null ? prev - amountValue : prev));
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Gagal mengajukan penarikan');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -45,12 +96,8 @@ export function WithdrawSaldo() {
               <CheckCircle className="w-12 h-12 text-green-600" />
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Permintaan Penarikan Berhasil!</h2>
-            <p className="text-slate-600 mb-4">
-              Permintaan penarikan saldo sebesar Rp {parseInt(amount).toLocaleString('id-ID')} sedang diproses
-            </p>
-            <p className="text-sm text-slate-500">
-              Dana akan ditransfer dalam 1-3 hari kerja
-            </p>
+            <p className="text-slate-600 mb-4">{successMessage}</p>
+            <p className="text-sm text-slate-500">Dana akan ditransfer dalam 1-3 hari kerja</p>
           </div>
         ) : (
           <>
@@ -59,9 +106,17 @@ export function WithdrawSaldo() {
             {/* Balance Info */}
             <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 mb-8 text-white">
               <p className="text-green-100 mb-2">Saldo Tersedia</p>
-              <p className="text-4xl font-bold">Rp {availableBalance.toLocaleString('id-ID')}</p>
+              <p className="text-4xl font-bold">
+                Rp {availableBalance !== null ? availableBalance.toLocaleString('id-ID') : '...'}
+              </p>
               <p className="text-green-100 mt-2 text-sm">Minimum penarikan: Rp {minWithdraw.toLocaleString('id-ID')}</p>
             </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm mb-4">
+                {error}
+              </div>
+            )}
 
             <form onSubmit={handleWithdraw} className="space-y-6">
               {/* Amount */}
@@ -77,11 +132,11 @@ export function WithdrawSaldo() {
                     placeholder="0"
                     required
                     min={minWithdraw}
-                    max={availableBalance}
+                    max={availableBalance ?? undefined}
                   />
                 </div>
-                <div className="flex justify-between mt-3">
-                  {[500000, 1000000, availableBalance].map((preset) => (
+                <div className="flex flex-wrap gap-3 mt-3">
+                  {[500000, 1000000].map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -91,6 +146,15 @@ export function WithdrawSaldo() {
                       Rp {(preset / 1000).toFixed(0)}K
                     </button>
                   ))}
+                  {availableBalance !== null && (
+                    <button
+                      type="button"
+                      onClick={() => setAmount(availableBalance.toString())}
+                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                    >
+                      Tarik Semua
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -232,10 +296,17 @@ export function WithdrawSaldo() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!amount || parseInt(amount) < minWithdraw || parseInt(amount) > availableBalance}
+                disabled={
+                  isSubmitting ||
+                  isLoadingBalance ||
+                  !amount ||
+                  parseInt(amount) < minWithdraw ||
+                  availableBalance === null ||
+                  parseInt(amount) > availableBalance
+                }
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white py-4 rounded-xl hover:shadow-lg transition-shadow font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Ajukan Penarikan
+                {isSubmitting ? 'Memproses...' : 'Ajukan Penarikan'}
               </button>
             </form>
           </>
