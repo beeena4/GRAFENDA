@@ -153,6 +153,44 @@ export const adminAPI = {
     const response = await api.get(`/admin/users?${params.toString()}`);
     return response.data.data;
   },
+
+  updateUser: async (id: number, data: { role?: 'user' | 'seller' | 'admin'; is_verified?: boolean }) => {
+    const response = await api.put(`/admin/users/${id}`, data);
+    return response.data.data;
+  },
+
+  getUserById: async (id: number) => {
+    const response = await api.get(`/admin/users/${id}`);
+    return response.data.data;
+  },
+
+  deleteUser: async (id: number) => {
+    const response = await api.delete(`/admin/users/${id}`);
+    return response.data.data;
+  },
+
+  getOrders: async (page = 1, limit = 10, status?: string) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (status) {
+      params.set('status', status);
+    }
+
+    const response = await api.get(`/admin/orders?${params.toString()}`);
+    return response.data.data;
+  },
+
+  getPendingPayments: async (page = 1, limit = 10) => {
+    const response = await api.get(`/payments/admin/pending?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
+  verifyPayment: async (paymentId: number, action: 'verify' | 'reject') => {
+    const response = await api.put(`/payments/${paymentId}/verify`, { action });
+    return response.data.data;
+  },
 };
 
 export const withdrawAPI = {
@@ -179,19 +217,37 @@ export const withdrawAPI = {
 
 export const serviceAPI = {
   createService: async (data: any) => {
-  try {
-    const response = await api.post('/services', data);
-    return response.data.data;
-  } catch (err: any) {
-    console.log('Detail error:', JSON.stringify(err.response?.data, null, 2));
-    throw err;
-  }
-},
+    try {
+      const response = await api.post('/services', data);
+      return response.data.data;
+    } catch (err: any) {
+      console.log('Detail error:', JSON.stringify(err.response?.data, null, 2));
+      throw err;
+    }
+  },
 
-getServiceById: async (id: number) => {
-  const response = await api.get(`/services/${id}`);
-  return response.data.data;
-},
+  getServiceById: async (id: number) => {
+    const response = await api.get(`/services/${id}`);
+    return response.data.data;
+  },
+
+  getServices: async (page = 1, limit = 10, search?: string, category?: string) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (search) params.set('search', search);
+    if (category) {
+      if (/^\d+$/.test(category)) {
+        params.set('category_id', category);
+      } else {
+        params.set('category', category);
+      }
+    }
+
+    const response = await api.get(`/services?${params.toString()}`);
+    return response.data.data;
+  },
 
   updateService: async (id: number, data: any) => {
     const response = await api.put(`/services/${id}`, data);

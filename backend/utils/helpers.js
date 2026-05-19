@@ -40,8 +40,9 @@ const buildSearchFilters = (queryParams) => {
   const filters = {};
 
   // Search term
-  if (queryParams.search) {
-    filters.search = queryParams.search.trim();
+  const searchTerm = queryParams.search || queryParams.query;
+  if (searchTerm) {
+    filters.search = searchTerm.trim();
   }
 
   // Category filter
