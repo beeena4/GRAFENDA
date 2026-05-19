@@ -2,7 +2,8 @@ import { Link, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import {
   User, Mail, Phone, MapPin, Edit, Save, ShoppingCart,
-  Star, DollarSign, Package, FileText, ArrowLeft, Palette, Plus, X
+  Star, DollarSign, Package, FileText, ArrowLeft, Palette, Plus, X,
+  CheckCircle
 } from "lucide-react";
 import { authAPI, dashboardAPI, profileAPI } from "../../services/api";
 
@@ -127,8 +128,29 @@ export function ProfileSeller() {
         bio: profile.bio || null,
       });
 
-      if (updatedUser?.avatar) {
-        setProfile((prev) => ({ ...prev, avatar: updatedUser.avatar }));
+      if (updatedUser) {
+        const normalizedUser = {
+          ...updatedUser,
+          avatar: updatedUser.avatar || profile.avatar,
+          full_name: updatedUser.full_name || profile.name,
+        };
+
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const newStoredUser = {
+          ...storedUser,
+          ...normalizedUser,
+          full_name: normalizedUser.full_name,
+          avatar: normalizedUser.avatar,
+        };
+        localStorage.setItem('user', JSON.stringify(newStoredUser));
+
+        setProfile((prev) => ({
+          ...prev,
+          name: normalizedUser.full_name,
+          email: normalizedUser.email || prev.email,
+          phone: normalizedUser.phone || prev.phone,
+          avatar: normalizedUser.avatar || prev.avatar,
+        }));
       }
 
       setIsEditing(false);
@@ -210,6 +232,10 @@ export function ProfileSeller() {
   }, [avatarPreview, avatarFile]);
 
   const profileAvatar = avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'S')}`;
+
+  const inputFieldClass = `w-full px-4 py-3 rounded-lg outline-none transition-colors duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isEditing ? 'border border-slate-200 bg-white text-slate-900' : 'border border-transparent bg-slate-100 text-slate-500'}`;
+  const textareaFieldClass = `${inputFieldClass} resize-none`;
+  const settingsCardClass = `rounded-xl p-6 transition-all duration-200 ${isEditing ? 'bg-white border border-blue-200 shadow-sm' : 'bg-slate-50 border border-slate-200'}`;
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -434,7 +460,10 @@ export function ProfileSeller() {
 
       case 'settings':
         return (
-          <div className="bg-slate-50 rounded-xl p-6">
+          <div className={settingsCardClass}>
+            <div className={isEditing ? 'mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700' : 'mb-6 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600'}>
+              {isEditing ? 'Mode edit aktif. Silakan ubah data dan klik Simpan.' : 'Form profil terkunci. Tekan Edit untuk mengubah.'}
+            </div>
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-slate-800">Edit Profil</h3>
               <button
@@ -448,8 +477,9 @@ export function ProfileSeller() {
             </div>
 
             {successMsg && (
-              <div className="mb-4 px-4 py-3 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                ✅ {successMsg}
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                <span className="text-green-700 text-sm font-medium">{successMsg}</span>
               </div>
             )}
             {errorMsg && (
@@ -459,16 +489,32 @@ export function ProfileSeller() {
             )}
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Foto Profil</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  disabled={!isEditing}
-                  className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-600 file:text-white file:font-semibold hover:file:bg-blue-700"
-                />
-                <p className="text-xs text-slate-500 mt-2">Unggah foto profil baru untuk mengganti gambar saat ini.</p>
+              <div className="flex flex-col md:flex-row items-center gap-4 rounded-xl border border-slate-200 p-4 bg-white">
+                <div className="flex-shrink-0">
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden border border-slate-200 bg-slate-100">
+                    <img
+                      src={profileAvatar}
+                      alt="Foto Profil"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Avatar';
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm text-slate-600">Foto Profil</p>
+                  {isEditing ? (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                    />
+                  ) : (
+                    <p className="text-sm text-slate-500">Klik Edit untuk mengubah foto profil</p>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Nama</label>
@@ -477,7 +523,7 @@ export function ProfileSeller() {
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                   disabled={!isEditing}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className={inputFieldClass}
                 />
               </div>
               <div>
@@ -486,7 +532,7 @@ export function ProfileSeller() {
                   type="email"
                   value={profile.email}
                   disabled
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none bg-slate-100"
+                  className={inputFieldClass}
                 />
               </div>
               <div>
@@ -496,7 +542,7 @@ export function ProfileSeller() {
                   value={profile.phone}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                   disabled={!isEditing}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className={inputFieldClass}
                 />
               </div>
               {/* Lokasi — disimpan ke seller_profiles */}
@@ -508,7 +554,7 @@ export function ProfileSeller() {
                   onChange={(e) => setProfile({ ...profile, location: e.target.value })}
                   disabled={!isEditing}
                   placeholder="Contoh: Jakarta, Indonesia"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className={inputFieldClass}
                 />
               </div>
               {/* Bio — disimpan ke seller_profiles */}
@@ -520,7 +566,7 @@ export function ProfileSeller() {
                   disabled={!isEditing}
                   rows={3}
                   placeholder="Ceritakan tentang diri Anda..."
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100 resize-none"
+                  className={textareaFieldClass}
                 />
               </div>
               {/* Keahlian — disimpan ke seller_profiles */}
@@ -532,7 +578,7 @@ export function ProfileSeller() {
                   disabled={!isEditing}
                   rows={3}
                   placeholder="Contoh: Logo Design, UI/UX, Ilustrasi"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100 resize-none"
+                  className={textareaFieldClass}
                 />
               </div>
               {/* Portofolio — disimpan ke seller_profiles */}
@@ -544,7 +590,7 @@ export function ProfileSeller() {
                   onChange={(e) => setProfile({ ...profile, portfolio: e.target.value })}
                   disabled={!isEditing}
                   placeholder="https://portfolio.anda.com"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-slate-100"
+                  className={inputFieldClass}
                 />
               </div>
             </div>

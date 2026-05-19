@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { dashboardAPI, serviceAPI } from "../../services/api";
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000';
+
 export function NewDashboardSeller() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"orders" | "services" | "earnings">("orders");
@@ -262,7 +264,17 @@ export function NewDashboardSeller() {
         </div>
         <div className="px-5 mt-6">
           <div className="bg-gradient-to-r from-blue-600 to-purple-500 rounded-2xl p-3 flex items-center gap-3">
-            <img src={user?.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.full_name || 'S')} alt="profile" className="w-12 h-12 rounded-full object-cover" />
+            <img
+              src={
+                user?.avatar
+                  ? user.avatar.startsWith('/')
+                    ? `${API_BASE_URL}${user.avatar}`
+                    : user.avatar
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'S')}`
+              }
+              alt="profile"
+              className="w-12 h-12 rounded-full object-cover"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-sm truncate">{user?.full_name || 'Seller'}</p>
               <p className="text-blue-100 text-xs">{user?.email || ''}</p>

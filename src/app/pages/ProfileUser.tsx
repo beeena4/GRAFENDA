@@ -1,17 +1,13 @@
 import { Link, useNavigate, useLocation } from "react-router";
 import { useState, useEffect } from "react";
-import { ordersData } from "./mockData";
 import { User, Mail, Phone, MapPin, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft, X, AlertCircle, CheckCircle, Lock } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import { authAPI } from "../../services/api";
+import { authAPI, dashboardAPI, API_ASSET_URL } from "../../services/api";
 
 interface ProfileState {
   full_name: string;
   email: string;
   phone: string;
-  bio: string;
-  university: string;
-  skills: string;
   avatar: string;
 }
 
@@ -19,9 +15,6 @@ const initialProfile: ProfileState = {
   full_name: '',
   email: '',
   phone: '',
-  bio: '',
-  university: '',
-  skills: '',
   avatar: '',
 };
 
@@ -42,8 +35,25 @@ export function ProfileUser() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [stats, setStats] = useState([
+    { label: "Total Pesanan", value: "0", icon: ShoppingCart },
+    { label: "Selesai", value: "0", icon: Star },
+    { label: "Dalam Proses", value: "0", icon: Clock },
+  ]);
 
-  const profileAvatar = avatarPreview || profile.avatar || 'https://via.placeholder.com/150?text=Avatar';
+const normalizeAvatarUrl = (avatar: string) => {
+  if (!avatar) return '';
+  if (avatar.startsWith('http') || avatar.startsWith('blob:')) return avatar;
+  if (avatar.startsWith('/')) return `${API_ASSET_URL}${avatar}`;
+  return avatar;
+};
+
+const profileAvatar = avatarPreview
+  ? normalizeAvatarUrl(avatarPreview)
+  : profile.avatar
+  ? normalizeAvatarUrl(profile.avatar)
+  : 'https://via.placeholder.com/150?text=Avatar';
   const profileName = profile.full_name || 'Pengguna';
   const profileEmail = profile.email || 'Email tidak tersedia';
 
@@ -81,22 +91,58 @@ export function ProfileUser() {
     };
   }, [avatarPreview, avatarFile]);
 
+  const formatOrderStatus = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'Selesai';
+      case 'pending':
+        return 'Menunggu Review';
+      case 'paid':
+      case 'process':
+      case 'revision':
+        return 'Dalam Proses';
+      default:
+        return status;
+    }
+  };
+
   const loadProfile = async () => {
     try {
       setIsLoadingProfile(true);
-      const profileData = await authAPI.getProfile();
-      // Ensure all required fields exist
+
+      const [profileData, dashboardData] = await Promise.all([
+        authAPI.getProfile(),
+        dashboardAPI.getBuyerDashboard(),
+      ]);
+
       const normalizedProfile = {
         full_name: profileData?.full_name || '',
         email: profileData?.email || '',
         phone: profileData?.phone || '',
-        bio: profileData?.bio || '',
-        university: profileData?.university || '',
-        skills: profileData?.skills || '',
         avatar: profileData?.avatar || '',
       };
+
       setProfile(normalizedProfile);
       setDraftProfile(normalizedProfile);
+
+      const dashboardStats = dashboardData?.stats || {};
+      setStats([
+        { label: 'Total Pesanan', value: String(dashboardStats.total_orders || 0), icon: ShoppingCart },
+        { label: 'Menunggu Review', value: String(dashboardStats.pending_review || 0), icon: Star },
+        { label: 'Order Aktif', value: String(dashboardStats.active_orders || 0), icon: Clock },
+      ]);
+
+      const mappedOrders = (dashboardData?.recent_orders || []).map((order: any) => ({
+        id: order.id,
+        orderId: `GRF-${String(order.id).padStart(6, '0')}`,
+        service: order.service_title || 'Pesanan',
+        seller: order.seller_name || '',
+        status: formatOrderStatus(order.status),
+        date: order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+        amount: order.price ? `Rp ${Number(order.price).toLocaleString('id-ID')}` : '-',
+      }));
+
+      setOrders(mappedOrders);
     } catch (error: any) {
       setErrorMessage('Gagal memuat profil: ' + error.message);
     } finally {
@@ -123,8 +169,6 @@ export function ProfileUser() {
         const formData = new FormData();
         formData.append('full_name', draftProfile.full_name || '');
         formData.append('phone', draftProfile.phone || '');
-        formData.append('bio', draftProfile.bio || '');
-        formData.append('skills', draftProfile.skills || '');
         formData.append('avatar', avatarFile);
 
         updatedProfile = await updateProfile(formData);
@@ -200,14 +244,6 @@ export function ProfileUser() {
     }
   };
 
-  // Dummy orders data (should be replaced with API call)
-  const orders = ordersData;
-
-  const stats = [
-    { label: "Total Pesanan", value: "12", icon: ShoppingCart },
-    { label: "Selesai", value: "8", icon: Star },
-    { label: "Dalam Proses", value: "4", icon: Clock },
-  ];
 
   const getBadgeColor = (status: string) => {
     if (status === "Selesai") return "bg-green-100 text-green-700";
@@ -240,23 +276,6 @@ export function ProfileUser() {
             <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-800">Informasi Profil</h3>
-                <button
-                  onClick={handleToggleEdit}
-                  disabled={isLoading}
-                  className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
-                >
-                  {isEditing ? (
-                    <>
-                      <Save className="w-4 h-4" />
-                      <span>Simpan</span>
-                    </>
-                  ) : (
-                    <>
-                      <Edit className="w-4 h-4" />
-                      <span>Edit</span>
-                    </>
-                  )}
-                </button>
               </div>
 
               {/* Error/Success Messages */}
@@ -321,60 +340,6 @@ export function ProfileUser() {
                         />
                       ) : (
                         <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <User className="w-5 h-5 text-slate-400 mt-1" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Bio</p>
-                      {isEditing ? (
-                        <textarea
-                          value={draftProfile.bio || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, bio: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          rows={3}
-                          placeholder="Ceritakan tentang diri Anda..."
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.bio || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <User className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Universitas</p>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={draftProfile.university || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, university: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          placeholder="Nama universitas"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.university || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <User className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Keahlian</p>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={draftProfile.skills || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, skills: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          placeholder="Contoh: Design Grafis, Video Editing"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.skills || 'Belum diisi'}</p>
                       )}
                     </div>
                   </div>
@@ -559,60 +524,6 @@ export function ProfileUser() {
                         />
                       ) : (
                         <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <User className="w-5 h-5 text-slate-400 mt-1" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Bio</p>
-                      {isEditing ? (
-                        <textarea
-                          value={draftProfile.bio || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, bio: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          rows={3}
-                          placeholder="Ceritakan tentang diri Anda..."
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.bio || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <User className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Universitas</p>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={draftProfile.university || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, university: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          placeholder="Nama universitas"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.university || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <User className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Keahlian</p>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={draftProfile.skills || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, skills: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          placeholder="Contoh: Design Grafis, Video Editing"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.skills || 'Belum diisi'}</p>
                       )}
                     </div>
                   </div>

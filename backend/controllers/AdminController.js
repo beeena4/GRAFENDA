@@ -9,6 +9,8 @@ class AdminController {
   // Get dashboard statistics
   static async getDashboardStats(req, res) {
     try {
+      const { query } = require('../config/database');
+
       // User statistics
       const userStats = await User.getAllUsers({}, 1, 1000); // Get all users for stats
       const totalUsers = userStats.pagination.total;
@@ -16,10 +18,24 @@ class AdminController {
       const buyerCount = userStats.users.filter(u => u.role === 'user').length;
 
       // Order statistics
-      const allOrders = await this.getAllOrders(1, 1000);
-      const totalOrders = allOrders.pagination.total;
-      const completedOrders = allOrders.orders.filter(o => o.status === 'completed').length;
-      const pendingOrders = allOrders.orders.filter(o => o.status === 'pending').length;
+      const orders = await query(`
+        SELECT o.*, 
+               b.full_name as buyer_name, b.email as buyer_email,
+               sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email,
+               svc.title as service_title, pkg.name as package_name
+        FROM orders o
+        JOIN users b ON o.buyer_id = b.id
+        JOIN seller_profiles sp ON o.seller_id = sp.id
+        JOIN users u ON sp.user_id = u.id
+        JOIN services svc ON o.service_id = svc.id
+        JOIN service_packages pkg ON o.package_id = pkg.id
+        ORDER BY o.created_at DESC
+        LIMIT 1000
+      `);
+
+      const totalOrders = orders.length;
+      const completedOrders = orders.filter(o => o.status === 'completed').length;
+      const pendingOrders = orders.filter(o => o.status === 'pending').length;
 
       // Payment statistics
       const paymentStats = await Payment.getPaymentStats();
@@ -28,7 +44,7 @@ class AdminController {
       const revenueStats = await this.getRevenueStats();
 
       // Recent activities
-      const recentOrders = await this.getAllOrders(1, 5);
+      const recentOrders = orders.slice(0, 5);
       const recentPayments = await Payment.getPendingPayments(1, 5);
 
       const stats = {
@@ -46,7 +62,7 @@ class AdminController {
         payments: paymentStats,
         revenue: revenueStats,
         recent_activity: {
-          orders: recentOrders.orders,
+          orders: recentOrders,
           payments: recentPayments.payments
         }
       };
@@ -118,7 +134,7 @@ class AdminController {
         SELECT o.*, 
                b.full_name as buyer_name, b.email as buyer_email,
                s.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email,
-               svc.title as service_title, sp.name as package_name
+               svc.title as service_title, pkg.name as package_name
         FROM orders o
         JOIN users b ON o.buyer_id = b.id
         JOIN seller_profiles sp ON o.seller_id = sp.id

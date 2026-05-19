@@ -2,7 +2,8 @@
 import axios from 'axios';
 
 // API Base URL
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/api';
+export const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/api';
+export const API_ASSET_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 // Create axios instance
 export const api = axios.create({
@@ -131,6 +132,48 @@ export const profileAPI = {
   deleteSellerPortfolio: async (portfolioId: number) => {
     const response = await api.delete(`/profile/portfolio/${portfolioId}`);
     return response.data.data;
+  }
+};
+
+export const adminAPI = {
+  getDashboardStats: async () => {
+    const response = await api.get('/admin/dashboard/stats');
+    return response.data.data;
+  },
+
+  getUsers: async (page = 1, limit = 10, role?: string) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (role) {
+      params.set('role', role);
+    }
+
+    const response = await api.get(`/admin/users?${params.toString()}`);
+    return response.data.data;
+  },
+};
+
+export const withdrawAPI = {
+  requestWithdraw: async (data: {
+    amount: number;
+    bank_name: string;
+    account_number: string;
+    account_holder: string;
+  }) => {
+    const response = await api.post('/withdraws/request', data);
+    return response.data.data;
+  },
+
+  getSellerWithdraws: async (page = 1, limit = 10) => {
+    const response = await api.get(`/withdraws/seller?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
+  cancelWithdraw: async (id: number) => {
+    const response = await api.put(`/withdraws/${id}/cancel`);
+    return response.data;
   }
 };
 

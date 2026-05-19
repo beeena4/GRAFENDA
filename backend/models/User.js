@@ -36,14 +36,32 @@ class User {
   }
 
   static async updateProfile(id, updateData) {
-    const { full_name, phone, avatar } = updateData;
-    const sql = `UPDATE users SET full_name = ?, phone = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-    await query(sql, [
-      safeValue(full_name),
-      safeValue(phone),
-      safeValue(avatar),
-      id
-    ]);
+    const fields = [];
+    const params = [];
+
+    if (updateData.full_name !== undefined) {
+      fields.push('full_name = ?');
+      params.push(safeValue(updateData.full_name));
+    }
+
+    if (updateData.phone !== undefined) {
+      fields.push('phone = ?');
+      params.push(safeValue(updateData.phone));
+    }
+
+    if (updateData.avatar !== undefined) {
+      fields.push('avatar = ?');
+      params.push(safeValue(updateData.avatar));
+    }
+
+    if (fields.length === 0) {
+      return;
+    }
+
+    const sql = `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    params.push(id);
+
+    await query(sql, params);
   }
 
   static async updatePassword(id, hashedPassword) {
