@@ -1,43 +1,144 @@
-import { useNavigate, useParams } from "react-router";
-import { useState } from "react";
-import { CreditCard, Wallet, Building2, CheckCircle2, ArrowLeft } from "lucide-react";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useState, useEffect } from "react";
+import { CreditCard, Wallet, Building2, CheckCircle2, ArrowLeft, Loader } from "lucide-react";
+import { serviceAPI, orderAPI, paymentAPI } from "../../services/api"; // Tambahkan paymentAPI
 
 export function Payment() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState<'transfer' | 'ewallet' | 'va'>('ewallet');
+  const [service, setService] = useState<any>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<number | null>(location.state?.selectedPackageId || null);
+  const [orderNotes, setOrderNotes] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const order = {
-    service: "Desain Logo Profesional - Paket Standard",
-    seller: "Design Studio",
-    package: "Standard",
-    price: 220000,
-    fee: 5000,
-    total: 225000,
+  const selectedPackage = service?.packages?.find((pkg: any) => pkg.id === selectedPackageId) || service?.packages?.[0] || null;
+
+  const handlePayment = async () => {
+    if (!service || !selectedPackage) {
+      setError('Pilih paket terlebih dahulu sebelum melanjutkan pembayaran.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      // 1. Buat Pesanan (Order) di Database terlebih dahulu
+      const order = await orderAPI.createOrder({
+        service_id: Number(id),
+        package_id: selectedPackage.id,
+        title: service.title,
+        description: orderNotes,
+      });
+
+      // 2. Sesuaikan format nama metode pembayaran agar tidak kepanjangan di Database (Mencegah Error Truncated)
+      const mappedMethod = paymentMethod === 'transfer' ? 'transfer' : paymentMethod === 'va' ? 'va' : 'ewallet';
+
+      // 3. Simpan pilihan metode pembayaran ke database menggunakan ID Order yang baru saja terbuat
+      await paymentAPI.uploadPaymentProof({
+        order_id: order.id, 
+        payment_method: mappedMethod as any,
+      });
+
+      // 4. Jika semua sukses, pindah ke halaman sukses dengan membawa ID ORDER (bukan ID Jasa)
+      navigate(`/payment-success/${order.id}`);
+      
+    } catch (err: any) {
+      console.error('Error creating order/payment:', err);
+      setError(err.response?.data?.message || err.message || 'Gagal memproses pembayaran.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handlePayment = () => {
-    navigate(`/payment-success/${id}`);
-  };
+  useEffect(() => {
+    if (!id) return;
+
+    // PERBAIKAN: Menggunakan fitur realtime (polling) agar jika harga/paket diubah penjual,
+    // halaman checkout pembeli langsung menyesuaikan harganya otomatis.
+    setLoading(true);
+    
+    const unsubscribeService = serviceAPI.subscribeToService(
+      Number(id),
+      (data) => {
+        setService(data);
+        // Set paket default hanya jika sebelumnya masih kosong
+        setSelectedPackageId((prev) => prev || data?.packages?.[0]?.id || null);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Error loading service for checkout:', err);
+        setError('Gagal memuat layanan. Silakan coba lagi.');
+        setLoading(false);
+      }
+    );
+
+    // Cleanup: Matikan realtime saat pindah halaman
+    return () => {
+      if (unsubscribeService) unsubscribeService();
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-14 h-14 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Memuat checkout...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-slate-600 hover:text-blue-600 mb-6 transition-colors cursor-pointer active:scale-95"
+          className="flex items-center text-slate-600 hover:text-blue-600 mb-6 transition-colors cursor-pointer active:scale-95 w-max"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 mr-1" />
           <span>Kembali</span>
         </button>
 
-        <h1 className="text-3xl font-bold text-slate-800 mb-8">Pembayaran</h1>
+        <h1 className="text-3xl font-bold text-slate-800 mb-4">Pembayaran</h1>
+        <p className="max-w-2xl text-slate-600 mb-8">Paket sudah dipilih pada halaman detail layanan. Lanjutkan pembayaran dan konfirmasi pesanan Anda.</p>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Payment Method */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">Pilih Metode Pembayaran</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-6">Ringkasan Paket</h2>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 mb-6">
+                <p className="text-sm text-slate-600 mb-3">Paket yang dipilih pada halaman detail layanan.</p>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-slate-800">{selectedPackage?.name || selectedPackage?.package_type || 'Paket terpilih'}</p>
+                    <p className="text-sm text-slate-500">{selectedPackage?.description || 'Deskripsi paket tersedia'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-blue-600">Rp {(selectedPackage?.price || 0).toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-slate-500 mt-1">{selectedPackage?.delivery_days ? `${selectedPackage.delivery_days} hari` : 'Waktu pengiriman'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Catatan untuk penjual</label>
+                <textarea
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  placeholder="Tuliskan detail tambahan atau arahan spesifik..."
+                  className="w-full min-h-[120px] p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:border-blue-400 focus:ring-blue-200 focus:ring-2 outline-none resize-none transition-all duration-200"
+                />
+              </div>
+
+              <h2 className="text-xl font-bold text-slate-800 mb-6 mt-8">Pilih Metode Pembayaran</h2>
 
               <div className="space-y-3">
                 {/* E-Wallet */}
@@ -117,34 +218,47 @@ export function Payment() {
             <div className="bg-white rounded-2xl shadow-sm p-6 sticky top-24">
               <h2 className="text-xl font-bold text-slate-800 mb-6">Ringkasan Pesanan</h2>
 
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 text-sm">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-4 mb-6">
                 <div>
-                  <p className="text-sm text-slate-600 mb-1">{order.seller}</p>
-                  <p className="font-semibold text-slate-800">{order.service}</p>
+                  <p className="text-sm text-slate-600 mb-1">{service?.seller_name || 'Penyedia Jasa'}</p>
+                  <p className="font-semibold text-slate-800">{service?.title || 'Layanan Profesional'}</p>
                 </div>
 
                 <div className="border-t border-slate-200 pt-4 space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Paket {order.package}</span>
-                    <span className="font-semibold text-slate-800">Rp {order.price.toLocaleString('id-ID')}</span>
+                    <span className="text-slate-600 capitalize">Paket {selectedPackage?.name || selectedPackage?.package_type || '-'}</span>
+                    <span className="font-semibold text-slate-800">Rp {(selectedPackage?.price || 0).toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Biaya Layanan</span>
-                    <span className="font-semibold text-slate-800">Rp {order.fee.toLocaleString('id-ID')}</span>
+                    <span className="text-slate-600">Metode</span>
+                    <span className="font-semibold text-slate-800 uppercase">
+                      {paymentMethod === 'ewallet' ? 'E-Wallet' : paymentMethod === 'transfer' ? 'Transfer' : 'VA'}
+                    </span>
                   </div>
-                  <div className="border-t border-slate-200 pt-3 flex justify-between">
+                  <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
                     <span className="font-bold text-slate-800">Total</span>
-                    <span className="font-bold text-blue-600 text-xl">Rp {order.total.toLocaleString('id-ID')}</span>
+                    <span className="text-blue-600 font-bold text-xl">Rp {(selectedPackage?.price || 0).toLocaleString('id-ID')}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Tombol Bayar Sekarang */}
               <button
                 onClick={handlePayment}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white py-3 rounded-xl hover:shadow-xl hover:opacity-95 hover:-translate-y-0.5 transition-all duration-200 font-medium cursor-pointer"
+                disabled={!selectedPackage || submitting}
+                className={`w-full flex justify-center items-center text-white py-3 rounded-xl transition-all duration-200 font-medium ${
+                  selectedPackage && !submitting 
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-500 hover:shadow-xl hover:opacity-95 active:scale-95 cursor-pointer' 
+                    : 'bg-slate-300 cursor-not-allowed'
+                }`}
               >
-                Bayar Sekarang
+                {submitting ? <Loader className="w-5 h-5 animate-spin mr-2" /> : null}
+                {submitting ? 'Memproses...' : 'Bayar Sekarang'}
               </button>
 
               <p className="text-xs text-slate-500 mt-4 text-center">
