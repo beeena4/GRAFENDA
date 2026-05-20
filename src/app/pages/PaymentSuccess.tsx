@@ -1,13 +1,21 @@
 import { Link, useParams } from "react-router";
 import { CheckCircle, Download, Home, MessageCircle, Loader } from "lucide-react";
 import { useEffect, useState } from "react";
-import { orderAPI } from "../../services/api"; // Hanya butuh orderAPI
+import { orderAPI, paymentAPI } from "../../services/api";
 
 export function PaymentSuccess() {
   const { id } = useParams();
   const [showNotification, setShowNotification] = useState(false);
   const [order, setOrder] = useState<any>(null);
+  const [payment, setPayment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const packagePrice = Number(order?.price) || 0;
+  const ADMIN_FEE_RATE = 0.1;
+  const adminFee = Math.round(packagePrice * ADMIN_FEE_RATE);
+  const totalPayment = packagePrice + adminFee;
 
   useEffect(() => {
     // Memunculkan popup notifikasi
@@ -17,8 +25,14 @@ export function PaymentSuccess() {
     // Mengambil data transaksi yang asli berdasarkan ID
     if (id) {
       orderAPI.getOrderById(Number(id))
-        .then((data) => {
+        .then(async (data) => {
           setOrder(data);
+          try {
+            const payments = await paymentAPI.getPaymentByOrderId(data.id);
+            setPayment(Array.isArray(payments) ? payments[0] : payments);
+          } catch (paymentErr) {
+            console.error('Gagal memuat data payment', paymentErr);
+          }
           setLoading(false);
         })
         .catch((err) => {
@@ -27,6 +41,44 @@ export function PaymentSuccess() {
         });
     }
   }, [id]);
+
+  const getFileNameFromDisposition = (disposition: string | null) => {
+    if (!disposition) return `invoice-${order?.id || 'receipt'}.pdf`;
+    const match = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+    if (match?.[1]) {
+      return match[1].replace(/['"]/g, '');
+    }
+    return `invoice-${order?.id || 'receipt'}.pdf`;
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!payment) {
+      setDownloadError('Data pembayaran tidak tersedia untuk mengunduh invoice.');
+      return;
+    }
+
+    setDownloading(true);
+    setDownloadError(null);
+
+    try {
+      const response = await paymentAPI.generateReceipt(payment.id);
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+      const fileName = getFileNameFromDisposition(response.headers['content-disposition']);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Gagal mengunduh invoice', err);
+      setDownloadError(err.response?.data?.message || err.message || 'Gagal mengunduh invoice.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -100,10 +152,18 @@ export function PaymentSuccess() {
                   <span className="text-slate-600">Metode Pembayaran</span>
                   <span className="font-semibold text-slate-800 uppercase">Transfer / E-Wallet</span>
                 </div>
+                <div className="flex justify-between py-3 border-b border-slate-200">
+                  <span className="text-slate-600">Subtotal</span>
+                  <span className="font-semibold text-slate-800">Rp {packagePrice.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-slate-200">
+                  <span className="text-slate-600">Biaya Admin</span>
+                  <span className="font-semibold text-slate-800">Rp {adminFee.toLocaleString('id-ID')}</span>
+                </div>
                 <div className="flex justify-between py-3">
                   <span className="text-slate-800 font-bold">Total</span>
                   <span className="text-blue-600 font-bold text-xl">
-                    Rp {(order?.price || 0).toLocaleString('id-ID')}
+                    Rp {totalPayment.toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>
@@ -116,9 +176,13 @@ export function PaymentSuccess() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex items-center justify-center space-x-2 px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors cursor-pointer active:scale-95">
+              <button
+                onClick={handleDownloadInvoice}
+                disabled={!order || downloading}
+                className={`flex items-center justify-center space-x-2 px-6 py-3 border-2 rounded-xl transition-colors duration-200 ${downloading ? 'border-slate-300 text-slate-400 bg-slate-100 cursor-not-allowed' : 'border-blue-600 text-blue-600 hover:bg-blue-50 cursor-pointer active:scale-95'}`}
+              >
                 <Download className="w-5 h-5" />
-                <span>Unduh Invoice</span>
+                <span>{downloading ? 'Mengunduh...' : 'Unduh Invoice'}</span>
               </button>
               <Link
                 to={`/chat/${id}`}
@@ -128,6 +192,11 @@ export function PaymentSuccess() {
                 <span>Chat Seller</span>
               </Link>
             </div>
+            {downloadError && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {downloadError}
+              </div>
+            )}
 
             <Link 
               to="/dashboard/user" 

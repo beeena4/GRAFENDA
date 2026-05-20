@@ -447,8 +447,8 @@ export const paymentAPI = {
   },
 
   generateReceipt: async (paymentId: number) => {
-    const response = await api.get(`/payments/${paymentId}/receipt`);
-    return response.data.data;
+    const response = await api.get(`/payments/${paymentId}/receipt`, { responseType: 'blob' });
+    return response;
   },
 
   // ===== TAMBAHAN REALTIME (POLLING) =====
