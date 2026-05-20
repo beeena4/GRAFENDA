@@ -9,7 +9,7 @@ const router = express.Router();
 // Validation rules
 const uploadPaymentValidation = [
   body('order_id').isInt({ min: 1 }),
-  body('payment_method').isIn(['bank_transfer', 'virtual_account', 'e_wallet'])
+  body('payment_method').isIn(['bank_transfer', 'virtual_account', 'e_wallet', 'transfer', 'va', 'ewallet'])
 ];
 
 const verifyPaymentValidation = [

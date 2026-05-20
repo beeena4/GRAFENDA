@@ -58,12 +58,8 @@ class OrderController {
         max_revisions: servicePackage.revisions
       });
 
-      // Create payment record
-      await Payment.create({
-        order_id: orderId,
-        amount: servicePackage.price,
-        payment_method: 'pending' // Will be updated when payment is made
-      });
+      // Note: Payment record is created when buyer uploads proof of payment.
+      // We avoid inserting a placeholder 'pending' value into the payment_method enum.
 
       // Notify seller
       await NotificationService.notifySellerNewOrder(

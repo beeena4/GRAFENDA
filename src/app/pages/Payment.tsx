@@ -15,7 +15,13 @@ export function Payment() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const ADMIN_FEE_RATE = 0.1;
   const selectedPackage = service?.packages?.find((pkg: any) => pkg.id === selectedPackageId) || service?.packages?.[0] || null;
+  const packagePrice = Number(selectedPackage?.price) || 0;
+  const adminFee = Math.round(packagePrice * ADMIN_FEE_RATE);
+  const totalAmount = packagePrice + adminFee;
+
+  const paymentMethodLabel = paymentMethod === 'ewallet' ? 'E-Wallet' : paymentMethod === 'transfer' ? 'Transfer Bank' : 'Virtual Account';
 
   const handlePayment = async () => {
     if (!service || !selectedPackage) {
@@ -35,18 +41,21 @@ export function Payment() {
         description: orderNotes,
       });
 
-      // 2. Sesuaikan format nama metode pembayaran agar tidak kepanjangan di Database (Mencegah Error Truncated)
-      const mappedMethod = paymentMethod === 'transfer' ? 'transfer' : paymentMethod === 'va' ? 'va' : 'ewallet';
+      // 2. Map metode pembayaran ke nilai yang sesuai dengan enum backend
+      const mappedMethod = paymentMethod === 'transfer'
+        ? 'bank_transfer'
+        : paymentMethod === 'va'
+          ? 'virtual_account'
+          : 'e_wallet';
 
-      // 3. Simpan pilihan metode pembayaran ke database menggunakan ID Order yang baru saja terbuat
+      // 3. Simpan pilihan metode pembayaran ke database menggunakan ID order yang baru saja terbuat
       await paymentAPI.uploadPaymentProof({
-        order_id: order.id, 
-        payment_method: mappedMethod as any,
+        order_id: order.id,
+        payment_method: mappedMethod,
       });
 
-      // 4. Jika semua sukses, pindah ke halaman sukses dengan membawa ID ORDER (bukan ID Jasa)
+      // 4. Berhasil, lanjut ke halaman sukses dengan ID order
       navigate(`/payment-success/${order.id}`);
-      
     } catch (err: any) {
       console.error('Error creating order/payment:', err);
       setError(err.response?.data?.message || err.message || 'Gagal memproses pembayaran.');
@@ -233,17 +242,19 @@ export function Payment() {
                 <div className="border-t border-slate-200 pt-4 space-y-3">
                   <div className="flex justify-between">
                     <span className="text-slate-600 capitalize">Paket {selectedPackage?.name || selectedPackage?.package_type || '-'}</span>
-                    <span className="font-semibold text-slate-800">Rp {(selectedPackage?.price || 0).toLocaleString('id-ID')}</span>
+                    <span className="font-semibold text-slate-800">Rp {packagePrice.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Biaya Admin</span>
+                    <span className="font-semibold text-slate-800">Rp {adminFee.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Metode</span>
-                    <span className="font-semibold text-slate-800 uppercase">
-                      {paymentMethod === 'ewallet' ? 'E-Wallet' : paymentMethod === 'transfer' ? 'Transfer' : 'VA'}
-                    </span>
+                    <span className="font-semibold text-slate-800 uppercase">{paymentMethodLabel}</span>
                   </div>
                   <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
                     <span className="font-bold text-slate-800">Total</span>
-                    <span className="text-blue-600 font-bold text-xl">Rp {(selectedPackage?.price || 0).toLocaleString('id-ID')}</span>
+                    <span className="text-blue-600 font-bold text-xl">Rp {totalAmount.toLocaleString('id-ID')}</span>
                   </div>
                 </div>
               </div>

@@ -2,7 +2,14 @@ import { useNavigate, useParams, Link } from "react-router";
 import { Star, Clock, CheckCircle2, MessageCircle, ShoppingCart, Award, ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";
 // Asumsi Anda memiliki fungsi subscribe di API Anda untuk realtime
-import { serviceAPI, reviewAPI } from "../../services/api"; 
+import { serviceAPI, reviewAPI, API_ASSET_URL } from "../../services/api"; 
+
+const resolveImageUrl = (url?: string, fallback = "https://via.placeholder.com/800x600") => {
+  if (!url) return fallback;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
+  if (url.startsWith("/")) return `${API_ASSET_URL}${url}`;
+  return url;
+};
 
 export function ServiceDetail() {
   const { id } = useParams();
@@ -129,7 +136,7 @@ export function ServiceDetail() {
           <div className="lg:col-span-2 space-y-6">
             {/* Service Image */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-              <img src={service.image || service.image_url || "https://via.placeholder.com/800x600"} alt={service.title || 'Service'} className="w-full aspect-video object-cover" />
+              <img src={resolveImageUrl(service.image || service.image_url)} alt={service.title || 'Service'} className="w-full aspect-video object-cover" />
             </div>
 
             {/* Service Info */}
@@ -238,7 +245,7 @@ export function ServiceDetail() {
                   reviews.slice(0, 3).map((review) => (
                     <div key={review.id} className="border-b border-slate-100 pb-6 last:border-0">
                       <div className="flex items-start space-x-4">
-                        <img src={review.reviewer_avatar || "https://via.placeholder.com/48"} alt={review.reviewer_name} className="w-12 h-12 rounded-full object-cover" />
+                        <img src={resolveImageUrl(review.reviewer_avatar, "https://via.placeholder.com/48")} alt={review.reviewer_name} className="w-12 h-12 rounded-full object-cover" />
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <div>
@@ -279,7 +286,7 @@ export function ServiceDetail() {
             <div className="bg-white rounded-2xl shadow-sm p-6 sticky top-24">
               <div className="text-center mb-6">
                 <img
-                  src={service.seller_avatar || "https://via.placeholder.com/80"}
+                  src={resolveImageUrl(service.seller_avatar, "https://via.placeholder.com/80")}
                   alt={service.seller_name || 'Seller'}
                   className="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-blue-100 object-cover"
                 />

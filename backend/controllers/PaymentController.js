@@ -15,8 +15,16 @@ class PaymentController {
         return sendError(res, 'Validation failed', 400, errors.array());
       }
 
-      const { order_id, payment_method } = req.body;
+      let { order_id, payment_method } = req.body;
       const userId = req.user.id;
+
+      // Normalize metode pembayaran alias
+      if (typeof payment_method === 'string') {
+        const normalized = payment_method.toLowerCase();
+        if (normalized === 'transfer') payment_method = 'bank_transfer';
+        else if (normalized === 'va') payment_method = 'virtual_account';
+        else if (normalized === 'ewallet') payment_method = 'e_wallet';
+      }
 
       // Check if order exists and belongs to user
       const order = await Order.findById(order_id);
@@ -30,21 +38,29 @@ class PaymentController {
 
       // Check if payment already exists
       const existingPayment = await Payment.findByOrderId(order_id);
+      let paymentId;
+
       if (existingPayment.length > 0) {
-        return sendError(res, 'Payment already exists for this order', 400);
-      }
+        const paymentRecord = existingPayment[0];
+        if (paymentRecord.status !== 'pending') {
+          return sendError(res, 'Payment already exists for this order', 400);
+        }
 
-      // Create payment record
-      const paymentId = await Payment.create({
-        order_id,
-        amount: order.price,
-        payment_method
-      });
+        // Update pending payment record instead of creating a duplicate
+        paymentId = paymentRecord.id;
+        await Payment.updatePaymentDetails(paymentId, order.price, payment_method, req.file ? `/uploads/payments/${req.file.filename}` : null);
+      } else {
+        // Create payment record
+        paymentId = await Payment.create({
+          order_id,
+          amount: order.price,
+          payment_method
+        });
 
-      // Upload payment proof if provided
-      if (req.file) {
-        const proofUrl = `/uploads/payments/${req.file.filename}`;
-        await Payment.updatePaymentProof(paymentId, proofUrl);
+        if (req.file) {
+          const proofUrl = `/uploads/payments/${req.file.filename}`;
+          await Payment.updatePaymentProof(paymentId, proofUrl);
+        }
       }
 
       // Update order status to paid
@@ -185,14 +201,20 @@ class PaymentController {
         return sendError(res, 'Access denied', 403);
       }
 
-      // Only generate receipt for verified payments
-      if (payment.status !== 'verified') {
-        return sendError(res, 'Receipt only available for verified payments', 400);
+      // Allow download for pending/paid payments as well as verified ones
+      if (!['pending', 'verified'].includes(payment.status)) {
+        return sendError(res, 'Receipt only available for pending or verified payments', 400);
       }
 
       const receipt = await PDFGenerator.generateReceipt(order, payment);
 
-      sendSuccess(res, 'Receipt generated successfully', receipt);
+      res.download(receipt.filePath, receipt.fileName, (err) => {
+        if (err) {
+          if (!res.headersSent) {
+            sendError(res, err.message, 500);
+          }
+        }
+      });
     } catch (error) {
       sendError(res, error.message, 500);
     }

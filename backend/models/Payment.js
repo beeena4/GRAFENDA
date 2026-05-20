@@ -33,6 +33,21 @@ class Payment {
     await query(sql, [paymentProof, id]);
   }
 
+  static async updatePaymentDetails(id, amount, payment_method, paymentProof = null) {
+    let sql = `UPDATE payments SET amount = ?, payment_method = ?`;
+    const params = [amount, payment_method];
+
+    if (paymentProof) {
+      sql += `, payment_proof = ?`;
+      params.push(paymentProof);
+    }
+
+    sql += `, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    params.push(id);
+
+    await query(sql, params);
+  }
+
   static async verifyPayment(id, verifiedBy) {
     const sql = `UPDATE payments SET status = 'verified', verified_by = ?, verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
     await query(sql, [verifiedBy, id]);
