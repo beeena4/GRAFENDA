@@ -26,11 +26,34 @@ export function DashboardUser() {
   };
 
   useEffect(() => {
-    fetchDashboard();
+    let isMounted = true;
+
+    const run = async () => {
+      if (!isMounted) return;
+      try {
+        await fetchDashboard();
+      } catch {
+        // fetchDashboard sudah handle error internal
+      }
+    };
+
+    run();
+    const interval = setInterval(run, 5000); // polling realtime terasa cepat
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
+
+
+
+
+
 
   const formatRupiah = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
 
   const getBadgeColor = (status: string) => {
     const map: Record<string, string> = {

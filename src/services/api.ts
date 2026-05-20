@@ -56,14 +56,14 @@ export const authAPI = {
   },
 
   updateSellerProfile: async (data: {
-  location?: string | null;
-  skills?: string | null;
-  portfolio_url?: string | null;
-  bio?: string | null;
-}) => {
-  const response = await api.put('/profile/seller', data);
-  return response.data.data;
-},
+    location?: string | null;
+    skills?: string | null;
+    portfolio_url?: string | null;
+    bio?: string | null;
+  }) => {
+    const response = await api.put('/profile/seller', data);
+    return response.data.data;
+  },
 
   login: async (data: { email: string; password: string }) => {
     const response = await api.post('/auth/login', data);
@@ -115,8 +115,6 @@ export const dashboardAPI = {
     return response.data.data;
   }
 };
-
-
 
 export const profileAPI = {
   getSellerPortfolio: async (userId: number) => {
@@ -257,6 +255,213 @@ export const serviceAPI = {
   deleteService: async (id: number) => {
     const response = await api.delete(`/services/${id}`);
     return response.data;
+  },
+
+  // ===== TAMBAHAN REALTIME (POLLING) =====
+  subscribeToService: (id: number, onSuccess: (data: any) => void, onError?: (err: any) => void) => {
+    serviceAPI.getServiceById(id).then(onSuccess).catch(onError || console.error);
+    
+    const interval = setInterval(() => {
+      serviceAPI.getServiceById(id)
+        .then(onSuccess)
+        .catch(() => {}); // Abaikan error minor saat polling
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  },
+};
+
+// Chat API functions
+export const chatAPI = {
+  sendMessage: async (data: {
+    order_id: number;
+    receiver_id: number;
+    message?: string;
+    message_type?: 'text' | 'image' | 'file';
+    file_url?: string;
+  }) => {
+    const response = await api.post('/chats/send', data);
+    return response.data.data;
+  },
+
+  getOrderMessages: async (orderId: number) => {
+    const response = await api.get(`/chats/order/${orderId}`);
+    return response.data.data;
+  },
+
+  getUserChats: async () => {
+    const response = await api.get('/chats/user/chats');
+    return response.data.data;
+  },
+
+  markAsRead: async (orderId: number) => {
+    const response = await api.put(`/chats/order/${orderId}/read`);
+    return response.data.data;
+  },
+
+  uploadChatFile: async (formData: FormData) => {
+    const response = await api.post('/chats/upload', formData);
+    return response.data.data;
+  },
+
+  // ===== TAMBAHAN REALTIME (POLLING) =====
+  subscribeToOrderMessages: (orderId: number, onSuccess: (data: any) => void) => {
+    chatAPI.getOrderMessages(orderId).then(onSuccess).catch(console.error);
+
+    const interval = setInterval(() => {
+      chatAPI.getOrderMessages(orderId)
+        .then(onSuccess)
+        .catch(() => {}); 
+    }, 2000); // Update setiap 2 detik untuk chat
+
+    return () => clearInterval(interval);
+  },
+};
+
+// Reviews API functions
+export const reviewAPI = {
+  createReview: async (data: {
+    order_id: number;
+    rating: number;
+    comment?: string;
+    images?: string[];
+  }) => {
+    const response = await api.post('/reviews', data);
+    return response.data.data;
+  },
+
+  getSellerReviews: async (sellerId: number, page = 1, limit = 10) => {
+    const response = await api.get(`/reviews/seller/${sellerId}?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
+  getSellerStats: async (sellerId: number) => {
+    const response = await api.get(`/reviews/stats/${sellerId}`);
+    return response.data.data;
+  },
+
+  getReviewById: async (id: number) => {
+    const response = await api.get(`/reviews/${id}`);
+    return response.data.data;
+  },
+
+  updateReview: async (id: number, data: {
+    rating?: number;
+    comment?: string;
+  }) => {
+    const response = await api.put(`/reviews/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteReview: async (id: number) => {
+    const response = await api.delete(`/reviews/${id}`);
+    return response.data.data;
+  },
+
+  // ===== TAMBAHAN REALTIME (POLLING) =====
+  subscribeToSellerReviews: (sellerId: number, onSuccess: (data: any) => void) => {
+    reviewAPI.getSellerReviews(sellerId, 1, 100)
+      .then(data => onSuccess(data?.reviews || []))
+      .catch(console.error);
+
+    const interval = setInterval(() => {
+      reviewAPI.getSellerReviews(sellerId, 1, 100)
+        .then(data => onSuccess(data?.reviews || []))
+        .catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(interval);
+  },
+
+  subscribeToSellerStats: (sellerId: number, onSuccess: (data: any) => void) => {
+    reviewAPI.getSellerStats(sellerId).then(onSuccess).catch(console.error);
+
+    const interval = setInterval(() => {
+      reviewAPI.getSellerStats(sellerId)
+        .then(onSuccess)
+        .catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(interval);
+  },
+};
+
+// Orders API functions
+export const orderAPI = {
+  createOrder: async (data: {
+    service_id: number;
+    package_id: number;
+    title?: string;
+    description?: string;
+  }) => {
+    const response = await api.post('/orders', data);
+    return response.data.data;
+  },
+
+  getUserOrders: async (page = 1, limit = 10, status?: string) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (status) params.set('status', status);
+    const response = await api.get(`/orders?${params.toString()}`);
+    return response.data.data;
+  },
+
+  getOrderById: async (id: number) => {
+    const response = await api.get(`/orders/${id}`);
+    return response.data.data;
+  },
+
+  updateOrderStatus: async (id: number, status: string) => {
+    const response = await api.put(`/orders/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  cancelOrder: async (id: number) => {
+    const response = await api.put(`/orders/${id}/cancel`, {});
+    return response.data.data;
+  },
+};
+
+// Payments API functions
+export const paymentAPI = {
+  uploadPaymentProof: async (data: {
+    order_id: number;
+    payment_method: 'bank_transfer' | 'virtual_account' | 'e_wallet';
+    proof_image?: File;
+  }) => {
+    const formData = new FormData();
+    formData.append('order_id', String(data.order_id));
+    formData.append('payment_method', data.payment_method);
+    if (data.proof_image) {
+      formData.append('proof_image', data.proof_image);
+    }
+    const response = await api.post('/payments/upload-proof', formData);
+    return response.data.data;
+  },
+
+  getPaymentByOrderId: async (orderId: number) => {
+    const response = await api.get(`/payments/order/${orderId}`);
+    return response.data.data;
+  },
+
+  generateReceipt: async (paymentId: number) => {
+    const response = await api.get(`/payments/${paymentId}/receipt`);
+    return response.data.data;
+  },
+
+  // ===== TAMBAHAN REALTIME (POLLING) =====
+  subscribeToPaymentStatus: (orderId: number, onSuccess: (data: any) => void) => {
+    paymentAPI.getPaymentByOrderId(orderId).then(onSuccess).catch(console.error);
+
+    const interval = setInterval(() => {
+      paymentAPI.getPaymentByOrderId(orderId)
+        .then(onSuccess)
+        .catch(() => {});
+    }, 4000); 
+
+    return () => clearInterval(interval);
   },
 };
 

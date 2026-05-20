@@ -1,2 +1,4 @@
 {"level":"info","message":"Grafenda API server running on port 5000","service":"grafenda-backend","timestamp":"2026-05-11T08:50:54.577Z"}
 {"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-11T08:50:54.581Z"}
+{"level":"info","message":"Grafenda API server running on port 5000","service":"grafenda-backend","timestamp":"2026-05-20T07:04:11.711Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-20T07:04:11.716Z"}

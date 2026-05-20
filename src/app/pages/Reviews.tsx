@@ -1,83 +1,86 @@
 import { useNavigate, useParams } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Star, SlidersHorizontal, ThumbsUp } from "lucide-react";
+// Asumsi Anda memiliki fungsi subscribe di API Anda untuk realtime
+import { reviewAPI, serviceAPI } from "../../services/api";
 
 export function Reviews() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | '5' | '4' | '3' | '2' | '1'>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'helpful'>('recent');
+  const [service, setService] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const service = {
-    title: "Desain Logo Profesional",
-    seller: "Design Studio",
-    averageRating: 4.9,
-    totalReviews: 250,
-  };
+  useEffect(() => {
+    if (!id) return;
 
-  const reviews = [
-    {
-      id: 1,
-      user: "Rina Wijaya",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100",
-      rating: 5,
-      date: "2 minggu lalu",
-      comment: "Hasil desain sangat memuaskan! Seller sangat responsif dan profesional. Logo yang dibuat sesuai dengan brand kami dan revisi sangat cepat. Sangat recommended!",
-      helpful: 24,
-      images: [
-        "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=300",
-      ],
-    },
-    {
-      id: 2,
-      user: "Budi Santoso",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100",
-      rating: 5,
-      date: "1 bulan lalu",
-      comment: "Logo yang dibuat sangat sesuai dengan brand kami. Terima kasih!",
-      helpful: 18,
-      images: [],
-    },
-    {
-      id: 3,
-      user: "Ahmad Fauzi",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100",
-      rating: 4,
-      date: "1 bulan lalu",
-      comment: "Kualitas bagus, waktu pengerjaan sesuai deadline. Hanya saja komunikasi agak lambat di awal.",
-      helpful: 12,
-      images: [],
-    },
-    {
-      id: 4,
-      user: "Siti Nurhaliza",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100",
-      rating: 5,
-      date: "2 bulan lalu",
-      comment: "Pelayanan excellent! Desain modern dan clean. Puas banget dengan hasilnya. Akan order lagi!",
-      helpful: 30,
-      images: [
-        "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=300",
-      ],
-    },
-    {
-      id: 5,
-      user: "Dian Permata",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100",
-      rating: 4,
-      date: "2 bulan lalu",
-      comment: "Desain bagus dan kreatif. Seller friendly dan terbuka untuk diskusi. Recommended!",
-      helpful: 15,
-      images: [],
-    },
-  ];
+    let unsubscribeReviews: (() => void) | undefined;
+    let unsubscribeStats: (() => void) | undefined;
 
-  const ratingDistribution = [
-    { stars: 5, count: 200, percentage: 80 },
-    { stars: 4, count: 35, percentage: 14 },
-    { stars: 3, count: 10, percentage: 4 },
-    { stars: 2, count: 3, percentage: 1 },
-    { stars: 1, count: 2, percentage: 1 },
+    const initializeRealtimeData = async () => {
+      try {
+        setLoading(true);
+        // Ambil data service untuk mengetahui seller_id (bisa juga dibuat realtime jika diperlukan)
+        const serviceData = await serviceAPI.getServiceById(Number(id));
+        setService(serviceData);
+
+        if (serviceData?.seller_id) {
+          // IMPLEMENTASI REALTIME REVIEWS LIST
+          // Mendengarkan tambahan atau perubahan ulasan secara instan
+          unsubscribeReviews = reviewAPI.subscribeToSellerReviews(
+            serviceData.seller_id,
+            (updatedReviews) => {
+              setReviews(updatedReviews || []);
+            }
+          );
+
+          // IMPLEMENTASI REALTIME STATS (Rating Distribution & Average)
+          // Mendengarkan perubahan kalkulasi rata-rata rating
+          unsubscribeStats = reviewAPI.subscribeToSellerStats(
+            serviceData.seller_id,
+            (updatedStats) => {
+              setStats(updatedStats);
+            }
+          );
+        }
+      } catch (err: any) {
+        console.error('Error fetching reviews:', err);
+        setError('Gagal memuat ulasan');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeRealtimeData();
+
+    // Cleanup function: Memutus koneksi realtime saat keluar dari halaman
+    return () => {
+      if (unsubscribeReviews) unsubscribeReviews();
+      if (unsubscribeStats) unsubscribeStats();
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-slate-600">Memuat ulasan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const ratingDistribution = stats?.ratingDistribution || [
+    { stars: 5, count: 0, percentage: 0 },
+    { stars: 4, count: 0, percentage: 0 },
+    { stars: 3, count: 0, percentage: 0 },
+    { stars: 2, count: 0, percentage: 0 },
+    { stars: 1, count: 0, percentage: 0 },
   ];
 
   const filteredReviews = filter === 'all'
@@ -86,17 +89,19 @@ export function Reviews() {
 
   const sortedReviews = [...filteredReviews].sort((a, b) => {
     if (sortBy === 'helpful') {
-      return b.helpful - a.helpful;
+      return (b.helpful_count || 0) - (a.helpful_count || 0);
     }
-    return 0;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Perbaikan Kursor & Ukuran Tombol Back */}
         <button
           onClick={() => navigate(`/service/${id}`)}
-          className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors"
+          className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors cursor-pointer w-max"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Kembali ke Detail Jasa</span>
@@ -109,28 +114,28 @@ export function Reviews() {
               <h2 className="text-xl font-bold text-slate-800 mb-4">Rating & Ulasan</h2>
 
               <div className="text-center mb-6">
-                <div className="text-5xl font-bold text-slate-800 mb-2">{service.averageRating}</div>
+                <div className="text-5xl font-bold text-slate-800 mb-2">{(stats?.averageRating || 0).toFixed(1)}</div>
                 <div className="flex items-center justify-center mb-2">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`w-6 h-6 ${
-                        i < Math.floor(service.averageRating)
+                        i < Math.floor(stats?.averageRating || 0)
                           ? 'fill-yellow-400 text-yellow-400'
                           : 'text-slate-300'
                       }`}
                     />
                   ))}
                 </div>
-                <p className="text-slate-600">{service.totalReviews} ulasan</p>
+                <p className="text-slate-600">{reviews.length} ulasan</p>
               </div>
 
               <div className="space-y-2 mb-6">
-                {ratingDistribution.map((item) => (
+                {ratingDistribution.map((item: any) => (
                   <button
                     key={item.stars}
                     onClick={() => setFilter(item.stars.toString() as any)}
-                    className={`w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 transition-colors ${
+                    className={`w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer ${
                       filter === item.stars.toString() ? 'bg-blue-50' : ''
                     }`}
                   >
@@ -140,7 +145,7 @@ export function Reviews() {
                     </div>
                     <div className="flex-1 bg-slate-200 rounded-full h-2">
                       <div
-                        className="bg-yellow-400 h-2 rounded-full"
+                        className="bg-yellow-400 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${item.percentage}%` }}
                       ></div>
                     </div>
@@ -151,7 +156,7 @@ export function Reviews() {
 
               <button
                 onClick={() => setFilter('all')}
-                className="w-full px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                className="w-full px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
               >
                 Tampilkan Semua
               </button>
@@ -168,10 +173,11 @@ export function Reviews() {
                 </h3>
                 <div className="flex items-center space-x-2">
                   <SlidersHorizontal className="w-5 h-5 text-slate-400" />
+                  {/* Perbaikan Kursor Dropdown */}
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                    className="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm cursor-pointer hover:border-slate-300 transition-colors bg-white"
                   >
                     <option value="recent">Terbaru</option>
                     <option value="helpful">Paling Membantu</option>
@@ -179,58 +185,55 @@ export function Reviews() {
                 </div>
               </div>
 
-              <div className="space-y-6">
-                {sortedReviews.map((review) => (
-                  <div key={review.id} className="border-b border-slate-100 pb-6 last:border-0">
-                    <div className="flex items-start space-x-4">
-                      <img
-                        src={review.avatar}
-                        alt={review.user}
-                        className="w-12 h-12 rounded-full"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <p className="font-semibold text-slate-800">{review.user}</p>
-                            <div className="flex items-center mt-1">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < review.rating
-                                      ? 'fill-yellow-400 text-yellow-400'
-                                      : 'text-slate-300'
-                                  }`}
-                                />
-                              ))}
+              {reviews.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <p>Belum ada ulasan untuk layanan ini</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {sortedReviews.map((review) => (
+                    <div key={review.id} className="border-b border-slate-100 pb-6 last:border-0">
+                      <div className="flex items-start space-x-4">
+                        {/* Perbaikan Object Cover untuk Avatar */}
+                        <img
+                          src={review.reviewer_avatar || "https://via.placeholder.com/48"}
+                          alt={review.reviewer_name}
+                          className="w-12 h-12 rounded-full object-cover border border-slate-100"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="font-semibold text-slate-800">{review.reviewer_name}</p>
+                              <div className="flex items-center mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-4 h-4 ${
+                                      i < review.rating
+                                        ? 'fill-yellow-400 text-yellow-400'
+                                        : 'text-slate-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
                             </div>
+                            <span className="text-sm text-slate-500">
+                              {new Date(review.created_at).toLocaleDateString('id-ID')}
+                            </span>
                           </div>
-                          <span className="text-sm text-slate-500">{review.date}</span>
+                          <p className="text-slate-700 mb-3 leading-relaxed">{review.comment}</p>
+
+                          {/* Perbaikan Tombol Membantu */}
+                          <button className="flex items-center space-x-2 text-slate-500 hover:text-blue-600 transition-colors cursor-pointer w-max active:scale-95">
+                            <ThumbsUp className="w-4 h-4" />
+                            <span className="text-sm font-medium">Membantu ({review.helpful_count || 0})</span>
+                          </button>
                         </div>
-                        <p className="text-slate-700 mb-3">{review.comment}</p>
-
-                        {review.images.length > 0 && (
-                          <div className="flex space-x-2 mb-3">
-                            {review.images.map((img, idx) => (
-                              <img
-                                key={idx}
-                                src={img}
-                                alt="Review"
-                                className="w-24 h-24 rounded-lg object-cover border border-slate-200 cursor-pointer hover:opacity-75"
-                              />
-                            ))}
-                          </div>
-                        )}
-
-                        <button className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 transition-colors">
-                          <ThumbsUp className="w-4 h-4" />
-                          <span className="text-sm">Membantu ({review.helpful})</span>
-                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
-  const updateProfile = async (data: Partial<User>) => {
+  const updateProfile = async (data: FormData | Partial<User>) => {
     try {
       setIsLoading(true);
       const updatedUser = await authAPI.updateProfile(data);
