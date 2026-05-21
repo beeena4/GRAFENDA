@@ -265,7 +265,7 @@ export const serviceAPI = {
       serviceAPI.getServiceById(id)
         .then(onSuccess)
         .catch(() => {}); // Abaikan error minor saat polling
-    }, 3000);
+    }, 30000);
     
     return () => clearInterval(interval);
   },
@@ -280,39 +280,47 @@ export const chatAPI = {
     message_type?: 'text' | 'image' | 'file';
     file_url?: string;
   }) => {
-    const response = await api.post('/chats/send', data);
+    const response = await api.post('/chat/send', data);
     return response.data.data;
   },
 
   getOrderMessages: async (orderId: number) => {
-    const response = await api.get(`/chats/order/${orderId}`);
+    const response = await api.get(`/chat/order/${orderId}`);
     return response.data.data;
   },
 
   getUserChats: async () => {
-    const response = await api.get('/chats/user/chats');
+    const response = await api.get('/chat/user/chats');
     return response.data.data;
   },
 
   markAsRead: async (orderId: number) => {
-    const response = await api.put(`/chats/order/${orderId}/read`);
+    const response = await api.put(`/chat/order/${orderId}/read`);
     return response.data.data;
   },
 
   uploadChatFile: async (formData: FormData) => {
-    const response = await api.post('/chats/upload', formData);
+    const response = await api.post('/chat/upload', formData);
     return response.data.data;
   },
 
   // ===== TAMBAHAN REALTIME (POLLING) =====
-  subscribeToOrderMessages: (orderId: number, onSuccess: (data: any) => void) => {
-    chatAPI.getOrderMessages(orderId).then(onSuccess).catch(console.error);
+  subscribeToOrderMessages: (orderId: number, onSuccess: (data: any) => void, onError?: (err: any) => void) => {
+    chatAPI.getOrderMessages(orderId)
+      .then(onSuccess)
+      .catch((err) => {
+        if (onError) {
+          onError(err);
+        } else {
+          console.error(err);
+        }
+      });
 
     const interval = setInterval(() => {
       chatAPI.getOrderMessages(orderId)
         .then(onSuccess)
-        .catch(() => {}); 
-    }, 2000); // Update setiap 2 detik untuk chat
+        .catch(() => {});
+    }, 30000); // Update setiap 30 detik untuk chat
 
     return () => clearInterval(interval);
   },
@@ -368,7 +376,7 @@ export const reviewAPI = {
       reviewAPI.getSellerReviews(sellerId, 1, 100)
         .then(data => onSuccess(data?.reviews || []))
         .catch(() => {});
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(interval);
   },
@@ -380,7 +388,7 @@ export const reviewAPI = {
       reviewAPI.getSellerStats(sellerId)
         .then(onSuccess)
         .catch(() => {});
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(interval);
   },
@@ -459,7 +467,7 @@ export const paymentAPI = {
       paymentAPI.getPaymentByOrderId(orderId)
         .then(onSuccess)
         .catch(() => {});
-    }, 4000); 
+    }, 30000);
 
     return () => clearInterval(interval);
   },

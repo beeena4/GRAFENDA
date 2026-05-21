@@ -2,11 +2,13 @@ import { useNavigate, useParams, useLocation } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { Send, ArrowLeft, Paperclip, ShoppingCart, Loader } from "lucide-react";
 import { chatAPI, orderAPI } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 export function Chat() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +28,10 @@ export function Chat() {
     scrollToBottom();
   }, [messages]);
 
+  const currentUserId = user?.id;
+  const otherPartyAvatar = currentUserId === order?.buyer_id ? order?.seller_avatar : order?.buyer_avatar;
+  const otherPartyName = currentUserId === order?.buyer_id ? order?.seller_name : order?.buyer_name;
+
   useEffect(() => {
     if (!id) return;
 
@@ -41,7 +47,8 @@ export function Chat() {
           try {
             orderData = await orderAPI.getOrderById(numericId);
           } catch (err: any) {
-            if (err.response?.status !== 404) {
+            const status = err.response?.status;
+            if (status !== 404 && status !== 403) {
               throw err;
             }
           }
@@ -50,7 +57,7 @@ export function Chat() {
         if (!orderData) {
           const allOrders = await orderAPI.getUserOrders(1, 100);
           const matchedOrder = allOrders.orders.find(
-            (order: any) => order.service_id === numericId || order.service_title === location.state?.serviceName
+            (order: any) => order.id === numericId || order.service_id === numericId || order.service_title === location.state?.serviceName
           );
 
           if (matchedOrder) {
@@ -59,21 +66,29 @@ export function Chat() {
         }
 
         if (!orderData) {
-          setError('Anda belum memiliki order terkait layanan ini. Silakan pesan terlebih dahulu untuk memulai chat.');
+          setError('Chat hanya tersedia jika Anda sudah memiliki order untuk layanan ini. Silakan pesan terlebih dahulu.');
           setLoading(false);
           return;
         }
 
         setOrder(orderData);
 
-        unsubscribeChat = chatAPI.subscribeToOrderMessages(orderData.id, (data) => {
-          setMessages(data?.messages || []);
-          setLoading(false);
-          setError(null);
-        });
+        unsubscribeChat = chatAPI.subscribeToOrderMessages(
+          orderData.id,
+          (data) => {
+            setMessages(Array.isArray(data) ? data : data?.messages || []);
+            setLoading(false);
+            setError(null);
+          },
+          (err) => {
+            console.error('Error loading order messages:', err);
+            setError('Gagal memuat pesan chat. Silakan muat ulang halaman.');
+            setLoading(false);
+          }
+        );
       } catch (err: any) {
         console.error('Error fetching chat data:', err);
-        setError('Gagal memuat ruang obrolan');
+        setError(err.response?.data?.message || err.message || 'Gagal memuat ruang obrolan');
         setLoading(false);
       }
     };
@@ -87,28 +102,34 @@ export function Chat() {
   }, [id]);
 
   const handleSend = async () => {
-    if (!message.trim() || !order) return;
+    if (!message.trim() || !order || !user) return;
 
-    // Simpan pesan sementara untuk UX yang lebih responsif
     const tempMessage = message.trim();
-    setMessage(''); 
+    setMessage('');
     setSending(true);
+
+    const sellerUserId = order.seller_user_id ?? order.seller_id;
+    const receiverId = user.id === order.buyer_id ? sellerUserId : order.buyer_id;
+
+    if (!receiverId) {
+      setError('Gagal mengirim pesan: ID penerima tidak valid');
+      setMessage(tempMessage);
+      setSending(false);
+      return;
+    }
 
     try {
       await chatAPI.sendMessage({
         order_id: order.id,
-        receiver_id: order.seller_id,
+        receiver_id: receiverId,
         message: tempMessage,
         message_type: 'text',
       });
-      
-      // Kita tidak perlu memanggil getOrderMessages di sini lagi,
-      // karena fungsi realtime/polling akan otomatis menariknya dalam 2 detik.
-      // Namun jika ingin benar-benar instan, polling yang menangkapnya sudah cukup cepat.
     } catch (err: any) {
       console.error('Error sending message:', err);
-      setError('Gagal mengirim pesan');
-      setMessage(tempMessage); // Kembalikan teks jika gagal kirim
+      const backendMessage = err.response?.data?.message || err.message || 'Gagal mengirim pesan';
+      setError(`Gagal mengirim pesan: ${backendMessage}`);
+      setMessage(tempMessage);
     } finally {
       setSending(false);
       scrollToBottom();
@@ -126,9 +147,9 @@ export function Chat() {
     );
   }
 
-  const seller = {
-    name: order?.seller_name || 'Penyedia Jasa',
-    avatar: order?.seller_avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
+  const chatParticipant = {
+    name: currentUserId === order?.buyer_id ? order?.seller_name : order?.buyer_name || 'Penyedia Jasa',
+    avatar: currentUserId === order?.buyer_id ? order?.seller_avatar : order?.buyer_avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
     status: 'online',
   };
 
@@ -146,12 +167,12 @@ export function Chat() {
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
               </button>
               {/* Tambahan object-cover agar foto proporsional */}
-              <img src={seller.avatar} alt={seller.name} className="w-12 h-12 rounded-full object-cover border border-slate-100" />
+              <img src={chatParticipant.avatar} alt={chatParticipant.name} className="w-12 h-12 rounded-full object-cover border border-slate-100" />
               <div>
-                <h3 className="font-semibold text-slate-800">{seller.name}</h3>
+                <h3 className="font-semibold text-slate-800">{chatParticipant.name}</h3>
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-slate-500 capitalize">{seller.status || 'online'}</span>
+                  <span className="text-sm text-slate-500 capitalize">{chatParticipant.status || 'online'}</span>
                 </div>
               </div>
             </div>
@@ -177,32 +198,35 @@ export function Chat() {
               <p>Belum ada pesan. Mulai percakapan sekarang!</p>
             </div>
           )}
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.sender_id === order?.buyer_id ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className="flex items-end space-x-2 max-w-md">
-                {msg.sender_id !== order?.buyer_id && (
-                  <img src={seller.avatar} alt={seller.name} className="w-8 h-8 rounded-full object-cover" />
-                )}
-                <div>
-                  <div
-                    className={`px-4 py-3 rounded-2xl transition-all duration-200 ${
-                      msg.sender_id === order?.buyer_id
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-br-sm shadow-sm'
-                        : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
-                    }`}
-                  >
-                    <p className="leading-relaxed">{msg.message}</p>
+          {messages.map((msg) => {
+            const isOutgoing = msg.sender_id === currentUserId;
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className="flex items-end space-x-2 max-w-md">
+                  {!isOutgoing && (
+                    <img src={otherPartyAvatar || chatParticipant.avatar} alt={otherPartyName || chatParticipant.name} className="w-8 h-8 rounded-full object-cover" />
+                  )}
+                  <div>
+                    <div
+                      className={`px-4 py-3 rounded-2xl transition-all duration-200 ${
+                        isOutgoing
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-br-sm shadow-sm'
+                          : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
+                      }`}
+                    >
+                      <p className="leading-relaxed">{msg.message}</p>
+                    </div>
+                    <p className={`text-xs text-slate-500 mt-1 px-1 ${isOutgoing ? 'text-right' : 'text-left'}`}>
+                      {new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
-                  <p className={`text-xs text-slate-500 mt-1 px-1 ${msg.sender_id === order?.buyer_id ? 'text-right' : 'text-left'}`}>
-                    {new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
 

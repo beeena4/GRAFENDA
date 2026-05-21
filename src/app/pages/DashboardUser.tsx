@@ -38,7 +38,7 @@ export function DashboardUser() {
     };
 
     run();
-    const interval = setInterval(run, 5000); // polling realtime terasa cepat
+    const interval = setInterval(run, 30000); // polling setiap 30 detik untuk dashboard
 
     return () => {
       isMounted = false;
