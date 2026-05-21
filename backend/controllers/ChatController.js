@@ -34,6 +34,9 @@ class ChatController {
         return sendError(res, 'Invalid receiver', 400);
       }
 
+      // DEBUG: lihat payload yang diterima
+      console.log('[chat/send] req.body =', req.body);
+
       const chatMessage = await ChatService.sendMessage({
         order_id,
         sender_id,

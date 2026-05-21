@@ -12,7 +12,18 @@ const sendMessageValidation = [
   body('receiver_id').isInt({ min: 1 }),
   body('message').optional().trim().isLength({ max: 1000 }),
   body('message_type').optional().isIn(['text', 'image', 'file']),
-  body('file_url').optional().isURL()
+  body('file_url').optional().custom((v) => {
+    if (!v) return true;
+    // frontend/backends sometimes send relative URLs like /uploads/...
+    if (typeof v === 'string' && v.startsWith('/')) return true;
+    // allow absolute URLs
+    try {
+      new URL(v);
+      return true;
+    } catch (e) {
+      throw new Error('file_url must be a valid absolute or relative URL');
+    }
+  })
 ];
 
 // Routes

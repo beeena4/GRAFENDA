@@ -11,6 +11,9 @@ class ChatService {
   static async sendMessage(chatData) {
     const { order_id, sender_id, receiver_id, message, message_type = 'text', file_url = null } = chatData;
 
+    // DEBUG: terima data dari controller
+    console.log('[chat/sendMessage] chatData =', chatData);
+
     // Create chat message in database
     const chatId = await Chat.create({
       order_id,
@@ -66,7 +69,23 @@ class ChatService {
   }
 
   static async getOrderMessages(orderId, userId, page = 1, limit = 50) {
+    // DEBUG: lihat output file_url/message_type yang dipakai frontend
+
     const messages = await Chat.findByOrderId(orderId, page, limit);
+
+    try {
+      console.log('[chat/getOrderMessages] last messages =', messages.slice(-5).map(m => ({
+        id: m.id,
+        message_type: m.message_type,
+        file_url: m.file_url,
+        file_name: m.file_name,
+        message: m.message,
+        created_at: m.created_at
+      })));
+    } catch (e) {
+      console.log('[chat/getOrderMessages] log failed', e?.message);
+    }
+
 
     // Mark messages as read for current user
     await Chat.markAsRead(orderId, userId);

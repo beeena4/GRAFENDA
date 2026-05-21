@@ -22,16 +22,10 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  // Allowed file types
-  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|zip|rar/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only images, documents, and archives are allowed.'));
-  }
+  // Allowed file types (based on extension and/or mimetype)
+  // Requirement: “buat semua format bisa” => longgarkan filter jadi tidak memblok file.
+  // Tetap pertahankan batas ukuran dari multer.
+  return cb(null, true);
 };
 
 // Upload middleware
