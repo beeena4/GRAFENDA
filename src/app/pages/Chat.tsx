@@ -19,9 +19,11 @@ type ChatMessage = {
 function resolveImageUrl(url?: string | null) {
   if (!url) return '';
   if (url.startsWith('http') || url.startsWith('blob:')) return url;
+  // URL relatif
   if (url.startsWith('/')) return `${API_ASSET_URL}${url}`;
-  return url;
+  return `${API_ASSET_URL}/${url}`;
 }
+
 
 function getFileKind(file: File): 'image' | 'file' {
   if (file.type.startsWith('image/')) return 'image';
@@ -73,43 +75,26 @@ export function Chat() {
     const initializeChat = async () => {
       try {
         setLoading(true);
-        const numericId = Number(id);
-        let orderData: any = null;
 
-        if (!Number.isNaN(numericId)) {
-          try {
-            orderData = await orderAPI.getOrderById(numericId);
-          } catch (err: any) {
-            const status = err.response?.status;
-            if (status !== 404 && status !== 403) {
-              throw err;
-            }
-          }
-        }
-
-        if (!orderData) {
-          const allOrders = await orderAPI.getUserOrders(1, 100);
-          const matchedOrder = allOrders.orders.find(
-            (order: any) => order.id === numericId || order.service_id === numericId || order.service_title === (location.state as any)?.serviceName
-          );
-
-          if (matchedOrder) {
-            orderData = await orderAPI.getOrderById(matchedOrder.id);
-          }
-        }
-
-        if (!orderData) {
-          setError('Chat hanya tersedia jika Anda sudah memiliki order untuk layanan ini. Silakan pesan terlebih dahulu.');
+        const orderId = Number(id);
+        if (Number.isNaN(orderId) || orderId < 1) {
+          setError('ID order tidak valid untuk chat.');
           setLoading(false);
           return;
         }
 
+        // Sinkron: route param ini selalu dianggap order_id
+        const orderData = await orderAPI.getOrderById(orderId);
         setOrder(orderData);
 
         unsubscribeChat = chatAPI.subscribeToOrderMessages(
           orderData.id,
           (data) => {
-            setMessages(Array.isArray(data) ? (data as ChatMessage[]) : (data?.messages as ChatMessage[]) || []);
+            setMessages(
+              Array.isArray(data)
+                ? (data as ChatMessage[])
+                : ((data?.messages as ChatMessage[]) || [])
+            );
             setLoading(false);
             setError(null);
           },
@@ -248,11 +233,15 @@ export function Chat() {
       // Backend upload mengembalikan file_url seperti: /uploads/chats/xxx
       // Endpoint /chat/send memakai express-validator isURL(), jadi harus dibuat absolute URL.
       const uploadedFileUrl = uploaded.file_url;
+      // Backend upload mengembalikan file_url seperti: /uploads/chats/xxx
+      // /chat/send memakai express-validator isURL(), jadi harus absolute.
+      // API_ASSET_URL sudah berisi base tanpa /api.
       const absoluteFileUrl = uploadedFileUrl
         ? uploadedFileUrl.startsWith('http')
           ? uploadedFileUrl
-          : `${API_ASSET_URL}${uploadedFileUrl}`
+          : `${API_ASSET_URL}${uploadedFileUrl.startsWith('/') ? '' : '/'}${uploadedFileUrl}`
         : undefined;
+
 
       await sendPayload({
         message_type: kind,

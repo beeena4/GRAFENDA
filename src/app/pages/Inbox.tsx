@@ -1,57 +1,68 @@
 import { Link, useNavigate } from "react-router";
 import { Search, MoreVertical, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { chatAPI, API_ASSET_URL } from "../../services/api";
+
+function resolveAvatarUrl(url?: string | null) {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('blob:')) return url;
+  if (url.startsWith('/')) return `${API_ASSET_URL}${url}`;
+  return url;
+}
+
+type BackendChatOrder = {
+  id: number;
+  other_party_name: string;
+  other_party_avatar: string | null;
+  last_message: string | null;
+  last_message_time: string | null;
+  unread_count: number;
+};
 
 export function Inbox() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<BackendChatOrder[]>([]);
 
-  const conversations = [
-    {
-      id: 1,
-      serviceId: 1,
-      name: 'Design Studio',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
-      lastMessage: 'Baik, saya akan segera memproses order Anda!',
-      timestamp: '10:33',
-      unread: 2,
-      online: true,
-    },
-    {
-      id: 2,
-      serviceId: 2,
-      name: 'Creative Media',
-      avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100',
-      lastMessage: 'Terima kasih! Akan saya kerjakan dengan baik',
-      timestamp: 'Kemarin',
-      unread: 0,
-      online: false,
-    },
-    {
-      id: 3,
-      serviceId: 3,
-      name: 'WordCraft',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100',
-      lastMessage: 'File sudah saya kirim, silakan dicek',
-      timestamp: '2 hari lalu',
-      unread: 1,
-      online: false,
-    },
-    {
-      id: 4,
-      serviceId: 4,
-      name: 'Social Design Co',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100',
-      lastMessage: 'Revisi pertama sudah selesai',
-      timestamp: '3 hari lalu',
-      unread: 0,
-      online: true,
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
 
-  const filteredConversations = conversations.filter((conv) =>
-    conv.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await chatAPI.getUserChats();
+        if (cancelled) return;
+        setConversations(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.response?.data?.message || err.message || 'Gagal memuat percakapan');
+        setConversations([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredConversations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((conv) => (conv.other_party_name || '').toLowerCase().includes(q));
+  }, [conversations, searchQuery]);
+
+  const formatTimestamp = (t: string | null) => {
+    if (!t) return '';
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -81,9 +92,19 @@ export function Inbox() {
             </div>
           </div>
 
+          {error && (
+            <div className="p-4 border-b border-slate-200 bg-red-50 text-red-800 text-sm text-center">
+              {error}
+            </div>
+          )}
+
           {/* Conversations List */}
           <div className="divide-y divide-slate-100">
-            {filteredConversations.length === 0 ? (
+            {loading ? (
+              <div className="p-12 text-center text-slate-500">
+                <p>Memuat percakapan...</p>
+              </div>
+            ) : filteredConversations.length === 0 ? (
               <div className="p-12 text-center text-slate-500">
                 <p>Tidak ada percakapan ditemukan</p>
               </div>
@@ -91,35 +112,41 @@ export function Inbox() {
               filteredConversations.map((conv) => (
                 <Link
                   key={conv.id}
-                  to={`/chat/${conv.serviceId}`}
+                  to={`/chat/${conv.id}`}
                   className="flex items-center p-4 hover:bg-slate-100 transition-all duration-200 cursor-pointer"
                 >
                   <div className="relative">
                     <img
-                      src={conv.avatar}
-                      alt={conv.name}
+                      src={resolveAvatarUrl(conv.other_party_avatar)}
+                      alt={conv.other_party_name}
                       className="w-14 h-14 rounded-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100';
+                      }}
                     />
-                    {conv.online && (
-                      <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                    )}
+                    {/* Online indicator belum tersedia dari backend saat ini */}
                   </div>
 
                   <div className="flex-1 ml-4 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-semibold text-slate-800 truncate">{conv.name}</h3>
-                      <span className="text-xs text-slate-500 ml-2 flex-shrink-0">{conv.timestamp}</span>
+                      <h3 className="font-semibold text-slate-800 truncate">{conv.other_party_name}</h3>
+                      <span className="text-xs text-slate-500 ml-2 flex-shrink-0">{formatTimestamp(conv.last_message_time)}</span>
                     </div>
-                    <p className="text-sm text-slate-600 truncate">{conv.lastMessage}</p>
+                    <p className="text-sm text-slate-600 truncate">{conv.last_message || '—'}</p>
                   </div>
 
                   <div className="ml-4 flex items-center space-x-2">
-                    {conv.unread > 0 && (
+                    {conv.unread_count > 0 && (
                       <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
-                        {conv.unread}
+                        {conv.unread_count}
                       </div>
                     )}
-                    <button className="p-2 hover:bg-slate-200 rounded-lg transition-all duration-200 cursor-pointer">
+                    <button
+                      type="button"
+                      className="p-2 hover:bg-slate-200 rounded-lg transition-all duration-200 cursor-pointer"
+                      onClick={(e) => e.preventDefault()}
+                      aria-label="Opsi"
+                    >
                       <MoreVertical className="w-5 h-5 text-slate-400" />
                     </button>
                   </div>
@@ -132,3 +159,4 @@ export function Inbox() {
     </div>
   );
 }
+
