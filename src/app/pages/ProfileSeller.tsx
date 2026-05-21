@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import {
   User, Mail, Phone, MapPin, Edit, Save, ShoppingCart,
   Star, DollarSign, Package, FileText, ArrowLeft, Palette, Plus, X,
@@ -449,7 +449,6 @@ export function ProfileSeller() {
                     </div>
                     <div className="flex space-x-2">
                       <Link to={`/chat/${order.id}`} className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm">Chat Buyer</Link>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">Upload Hasil</button>
                     </div>
                   </div>
                 </div>

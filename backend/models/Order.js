@@ -95,6 +95,11 @@ class Order {
     await query(sql, params);
   }
 
+  static async updateResultImage(id, imageUrl) {
+    const sql = `UPDATE orders SET result_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    await query(sql, [imageUrl, id]);
+  }
+
   static async updateRevisions(id, revisionsUsed) {
     const sql = `UPDATE orders SET revisions_used = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
     await query(sql, [revisionsUsed, id]);

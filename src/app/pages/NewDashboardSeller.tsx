@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import {
   LayoutDashboard, Package, DollarSign, MessageCircle, User,
   LogOut, Clock, Repeat, ShoppingCart, CheckCircle, XCircle,
   Upload, Edit, Trash2, Plus,
 } from "lucide-react";
-import { dashboardAPI, serviceAPI } from "../../services/api";
+import { dashboardAPI, serviceAPI, orderAPI } from "../../services/api";
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000';
 
@@ -27,6 +27,11 @@ export function NewDashboardSeller() {
   const [myServices, setMyServices] = useState<any[]>([]);
   const [earnings, setEarnings] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [uploadingOrderId, setUploadingOrderId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -100,6 +105,90 @@ export function NewDashboardSeller() {
   }
 };
 
+  const refreshDashboard = async () => {
+    setLoading(true);
+    try {
+      const data = await dashboardAPI.getSellerDashboard();
+      setStats(data.stats || {});
+      setActiveOrders(data.active_orders || []);
+      setMyServices(data.services || []);
+      setEarnings(data.earnings || []);
+    } catch (err) {
+      console.error('Failed to refresh dashboard:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptOrder = async (orderId: number) => {
+    try {
+      setLoading(true);
+      await orderAPI.updateOrderStatus(orderId, 'process');
+      setActiveOrders((prev) => prev.map((order) => order.id === orderId ? { ...order, status: 'process' } : order));
+    } catch (err) {
+      console.error('Gagal menerima order:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectOrder = async (orderId: number) => {
+    try {
+      setLoading(true);
+      await orderAPI.updateOrderStatus(orderId, 'cancelled');
+      setActiveOrders((prev) => prev.map((order) => order.id === orderId ? { ...order, status: 'cancelled' } : order));
+      setStats((prev) => ({ ...prev, active_orders: Math.max((prev.active_orders || 1) - 1, 0) }));
+    } catch (err) {
+      console.error('Gagal menolak order:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadResult = (orderId: number) => {
+    setUploadingOrderId(orderId);
+    fileInputRef.current?.click();
+  };
+
+  const handleResultFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setUploadingOrderId(null);
+      return;
+    }
+    if (!uploadingOrderId) return;
+
+    // Show local preview immediately
+    const tempUrl = URL.createObjectURL(file);
+    setActiveOrders((prev) => prev.map((order) => order.id === uploadingOrderId ? { ...order, result_image: tempUrl } : order));
+
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('result_image', file);
+
+      const result = await orderAPI.uploadOrderResult(uploadingOrderId, formData);
+      setActiveOrders((prev) => prev.map((order) => order.id === uploadingOrderId ? { ...order, status: 'completed', result_image: result.result_image } : order));
+      setStats((prev) => ({ ...prev, active_orders: Math.max((prev.active_orders || 1) - 1, 0) }));
+      setUploadingOrderId(null);
+      // Revoke local preview URL
+      try { URL.revokeObjectURL(tempUrl); } catch (e) { /* ignore */ }
+    } catch (err) {
+      console.error('Gagal mengunggah hasil order:', err);
+      const msg = (err as any)?.response?.data?.message || 'Gagal mengunggah hasil order';
+      setUploadError(msg);
+      setTimeout(() => setUploadError(null), 5000);
+      // keep local preview or clear it
+      setActiveOrders((prev) => prev.map((order) => order.id === uploadingOrderId ? { ...order, result_image: undefined } : order));
+      try { URL.revokeObjectURL(tempUrl); } catch (e) { /* ignore */ }
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const renderOrders = () => (
     <div className="space-y-5">
       {activeOrders.length === 0 ? (
@@ -108,8 +197,17 @@ export function NewDashboardSeller() {
         activeOrders.map((order) => (
           <div key={order.id} className="bg-white rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
             <div className="flex items-start justify-between mb-5">
-              <div>
+                <div>
                 <h3 className="font-bold text-[18px] text-slate-800">{order.title}</h3>
+                {order.result_image && (
+                  <div className="mt-3 mb-2">
+                    <img
+                      src={typeof order.result_image === 'string' && order.result_image.startsWith('/') ? `${API_BASE_URL}${order.result_image}` : order.result_image}
+                      alt="Hasil Order"
+                      className="w-36 h-24 object-cover rounded-md border border-slate-200"
+                    />
+                  </div>
+                )}
                 <p className="text-sm text-slate-500 mt-1">dari {order.buyer_name}</p>
                 <p className="text-sm text-slate-400 mt-1">Deadline: {order.delivery_days} hari</p>
               </div>
@@ -120,15 +218,38 @@ export function NewDashboardSeller() {
             <div className="flex items-center justify-between border-t border-slate-100 pt-4">
               <h4 className="font-bold text-slate-800">{formatRupiah(order.price)}</h4>
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-xl transition">
-                  <CheckCircle className="w-4 h-4" /><span>Terima</span>
-                </button>
-                <button className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-xl transition">
-                  <XCircle className="w-4 h-4" /><span>Tolak</span>
-                </button>
-                <button className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-xl transition">
-                  <Upload className="w-4 h-4" /><span>Upload Hasil</span>
-                </button>
+                {order.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => handleAcceptOrder(order.id)}
+                      disabled={loading}
+                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 text-white text-sm px-4 py-2 rounded-xl transition"
+                    >
+                      <CheckCircle className="w-4 h-4" /><span>Terima</span>
+                    </button>
+                    <button
+                      onClick={() => handleRejectOrder(order.id)}
+                      disabled={loading}
+                      className="flex items-center gap-1 bg-red-600 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 text-white text-sm px-4 py-2 rounded-xl transition"
+                    >
+                      <XCircle className="w-4 h-4" /><span>Tolak</span>
+                    </button>
+                  </>
+                )}
+                {['paid', 'process', 'revision'].includes(order.status) && (
+                  <button
+                    onClick={() => handleUploadResult(order.id)}
+                    className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-xl transition"
+                  >
+                    <Upload className="w-4 h-4" /><span>Upload Hasil</span>
+                  </button>
+                )}
+                {order.status === 'completed' && (
+                  <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">Hasil Terunggah</span>
+                )}
+                {order.status === 'completed' && (
+                  <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">Hasil Terunggah</span>
+                )}
               </div>
             </div>
           </div>
@@ -252,6 +373,13 @@ export function NewDashboardSeller() {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] flex">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleResultFileChange}
+      />
       <aside className="w-[260px] bg-[#eef3fb] border-r border-slate-200 fixed h-screen flex flex-col">
         <div className="px-6 pt-6">
           <Link to="/" className="flex items-center gap-3">

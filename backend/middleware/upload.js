@@ -49,6 +49,7 @@ const uploadPortfolio = upload.array('portfolio', 10); // Max 10 files
 const uploadPaymentProof = upload.single('payment_proof');
 const uploadServiceImages = upload.array('images', 5); // Max 5 images for service
 const uploadChatFile = upload.single('file');
+const uploadOrderResult = upload.single('result_image');
 
 module.exports = {
   upload,
@@ -56,5 +57,6 @@ module.exports = {
   uploadPortfolio,
   uploadPaymentProof,
   uploadServiceImages,
-  uploadChatFile
+  uploadChatFile,
+  uploadOrderResult
 };
