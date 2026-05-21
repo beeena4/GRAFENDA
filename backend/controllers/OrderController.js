@@ -170,6 +170,44 @@ class OrderController {
     }
   }
 
+  // Upload result image
+  static async uploadOrderResult(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const role = req.user.role;
+
+      const order = await Order.findById(id);
+      if (!order) {
+        return sendError(res, 'Order not found', 404);
+      }
+
+      if (role !== 'seller' || order.seller_user_id !== userId) {
+        return sendError(res, 'Access denied', 403);
+      }
+
+      if (!req.file) {
+        return sendError(res, 'File hasil diperlukan', 400);
+      }
+
+      const allowedStatuses = ['paid', 'process', 'revision'];
+      if (!allowedStatuses.includes(order.status)) {
+        return sendError(res, 'Order tidak dapat diunggah hasilnya', 400);
+      }
+
+      const resultImageUrl = `/uploads/${req.file.filename}`;
+      await Order.updateResultImage(id, resultImageUrl);
+      await Order.updateStatus(id, 'completed', userId);
+
+      await NotificationService.notifyOrderStatus(id, order.buyer_id, 'completed', order.title);
+      await NotificationService.notifyReviewReminder(id, order.buyer_id, order.title);
+
+      sendSuccess(res, 'Hasil order berhasil diunggah', { result_image: resultImageUrl });
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
   // Cancel order
   static async cancelOrder(req, res) {
     try {

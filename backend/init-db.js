@@ -145,6 +145,7 @@ const initDatabase = async () => {
         delivery_days INT NOT NULL,
         revisions_used INT DEFAULT 0,
         max_revisions INT DEFAULT 0,
+        result_image VARCHAR(255),
         started_at TIMESTAMP NULL,
         completed_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

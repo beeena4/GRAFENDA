@@ -430,6 +430,11 @@ export const orderAPI = {
     const response = await api.put(`/orders/${id}/cancel`, {});
     return response.data.data;
   },
+
+  uploadOrderResult: async (orderId: number, formData: FormData) => {
+    const response = await api.post(`/orders/${orderId}/result`, formData);
+    return response.data.data;
+  },
 };
 
 // Payments API functions
