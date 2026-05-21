@@ -19,7 +19,7 @@ export function DashboardSeller() {
     try {
       const data = await dashboardAPI.getSellerDashboard();
       setStats(data.stats || {});
-      setOrders(data.active_orders || []);
+      setOrders((data.active_orders || []).filter((o: any) => o.status !== 'pending'));
       setServices(data.services || []);
     } catch (err) {
       console.error('Failed to fetch dashboard:', err);
@@ -49,8 +49,8 @@ export function DashboardSeller() {
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
-      pending: 'Menunggu',
-      paid: 'Dibayar',
+      pending: 'Menunggu Verifikasi',
+      paid: 'Sudah Dibayar',
       process: 'Dalam Proses',
       revision: 'Revisi',
       completed: 'Selesai',

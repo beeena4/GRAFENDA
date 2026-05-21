@@ -96,8 +96,9 @@ const profileAvatar = avatarPreview
       case 'completed':
         return 'Selesai';
       case 'pending':
-        return 'Menunggu Review';
+        return 'Menunggu Verifikasi';
       case 'paid':
+        return 'Sudah Dibayar';
       case 'process':
       case 'revision':
         return 'Dalam Proses';
@@ -247,7 +248,7 @@ const profileAvatar = avatarPreview
 
   const getBadgeColor = (status: string) => {
     if (status === "Selesai") return "bg-green-100 text-green-700";
-    if (status === "Menunggu Review") return "bg-yellow-100 text-yellow-700";
+    if (status === "Menunggu Verifikasi" || status === "Menunggu Review") return "bg-amber-100 text-amber-700";
     return "bg-blue-100 text-blue-700";
   };
 

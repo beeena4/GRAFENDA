@@ -102,11 +102,12 @@ export function OrderDetail() {
             {/* Progress Step */}
             <div className="relative flex justify-between">
               {[
-                { label: "Dibayar", step: 1 },
-                { label: "Proses", step: 2 },
-                { label: "Selesai", step: 3 },
+                { label: "Verifikasi", step: 1 },
+                { label: "Dibayar", step: 2 },
+                { label: "Proses", step: 3 },
+                { label: "Selesai", step: 4 },
               ].map((item, index) => (
-                <div key={index} className="flex flex-col items-center z-10 w-20">
+                <div key={index} className="flex flex-col items-center z-10 w-16">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                     config.step >= item.step ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
                   }`}>
@@ -120,7 +121,7 @@ export function OrderDetail() {
               <div className="absolute top-4 left-10 right-10 h-0.5 bg-slate-100 -z-0">
                 <div 
                   className="h-full bg-blue-600 transition-all duration-700" 
-                  style={{ width: config.step === 1 ? '0%' : config.step === 2 ? '50%' : '100%' }}
+                  style={{ width: config.step === 1 ? '0%' : config.step === 2 ? '33.33%' : config.step === 3 ? '66.66%' : '100%' }}
                 />
               </div>
             </div>

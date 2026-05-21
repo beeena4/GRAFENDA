@@ -19,8 +19,9 @@ import {
   Eye,
   Check,
   Trash,
+  Clock,
 } from "lucide-react";
-import { adminAPI } from "../../services/api";
+import { adminAPI, API_ASSET_URL } from "../../services/api";
 
 export function DashboardAdmin() {
   const navigate = useNavigate();
@@ -61,8 +62,8 @@ export function DashboardAdmin() {
     { id: 'verification', icon: CheckCircle, label: 'Verifikasi Pembayaran' },
   ];
 
-  const loadDashboardStats = async () => {
-    setLoadingDashboard(true);
+  const loadDashboardStats = async (showLoading = true) => {
+    if (showLoading) setLoadingDashboard(true);
     setError(null);
 
     try {
@@ -71,16 +72,16 @@ export function DashboardAdmin() {
     } catch (err: any) {
       setError(err?.message || 'Gagal memuat statistik admin');
     } finally {
-      setLoadingDashboard(false);
+      if (showLoading) setLoadingDashboard(false);
     }
   };
 
-  const loadUsersData = async () => {
-    setLoadingUsers(true);
+  const loadUsersData = async (showLoading = true) => {
+    if (showLoading) setLoadingUsers(true);
     setError(null);
 
     try {
-      const usersResult = await adminAPI.getUsers(1, 10);
+      const usersResult = await adminAPI.getUsers(1, 100);
       setUsersData(
         usersResult.users.map((user: any) => ({
           id: user.id,
@@ -88,12 +89,13 @@ export function DashboardAdmin() {
           email: user.email,
           joinDate: user.created_at ? new Date(user.created_at).toLocaleDateString('id-ID') : '-',
           orders: '-',
-          status: user.is_verified ? 'Aktif' : 'Tidak Aktif',
+          status: user.status === 'suspended' ? 'Suspended' : user.status === 'inactive' ? 'Tidak Aktif' : 'Aktif',
           isVerified: Boolean(user.is_verified),
+          role: user.role,
         }))
       );
 
-      const sellerResult = await adminAPI.getUsers(1, 10, 'seller');
+      const sellerResult = await adminAPI.getUsers(1, 100, 'seller');
       setSellersData(
         sellerResult.users.map((seller: any) => ({
           id: seller.id,
@@ -103,65 +105,73 @@ export function DashboardAdmin() {
           services: '-',
           orders: '-',
           rating: '-',
-          status: seller.is_verified ? 'Aktif' : 'Tidak Aktif',
+          status: seller.status === 'suspended' ? 'Suspended' : seller.status === 'inactive' ? 'Tidak Aktif' : 'Aktif',
           isVerified: Boolean(seller.is_verified),
+          role: seller.role || 'seller',
         }))
       );
     } catch (err: any) {
       setError(err?.message || 'Gagal memuat daftar user');
     } finally {
-      setLoadingUsers(false);
+      if (showLoading) setLoadingUsers(false);
     }
   };
 
-  const loadOrdersData = async () => {
-    setOrdersLoading(true);
+  const loadOrdersData = async (showLoading = true) => {
+    if (showLoading) setOrdersLoading(true);
     setError(null);
 
     try {
-      const ordersResult = await adminAPI.getOrders(1, 10);
+      const ordersResult = await adminAPI.getOrders(1, 100);
       setOrdersData(ordersResult.orders);
     } catch (err: any) {
       setError(err?.message || 'Gagal memuat data transaksi');
       setOrdersData([]);
     } finally {
-      setOrdersLoading(false);
+      if (showLoading) setOrdersLoading(false);
     }
   };
 
-  const loadPaymentsData = async () => {
-    setPaymentsLoading(true);
+  const loadPaymentsData = async (showLoading = true) => {
+    if (showLoading) setPaymentsLoading(true);
     setError(null);
 
     try {
-      const paymentsResult = await adminAPI.getPendingPayments(1, 10);
+      const paymentsResult = await adminAPI.getPendingPayments(1, 100);
       setPaymentsData(paymentsResult.payments);
     } catch (err: any) {
       setError(err?.message || 'Gagal memuat data verifikasi pembayaran');
       setPaymentsData([]);
     } finally {
-      setPaymentsLoading(false);
+      if (showLoading) setPaymentsLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadData = async () => {
-      await loadDashboardStats();
-      await loadUsersData();
+    let isMounted = true;
+    const loadData = async (showLoading = true) => {
+      if (!isMounted) return;
+      await Promise.all([
+        loadDashboardStats(showLoading),
+        loadUsersData(showLoading),
+        loadOrdersData(showLoading),
+        loadPaymentsData(showLoading)
+      ]);
     };
 
-    loadData();
+    loadData(true);
+
+    const interval = setInterval(() => {
+      if (isMounted) {
+        loadData(false);
+      }
+    }, 5000); // Polling lebih cepat untuk realtime sinkronisasi
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
-
-  useEffect(() => {
-    if (activeMenu === 'transactions') {
-      loadOrdersData();
-    }
-
-    if (activeMenu === 'verification') {
-      loadPaymentsData();
-    }
-  }, [activeMenu]);
 
   const handleViewUserDetail = async (user: any) => {
     setError(null);
@@ -172,7 +182,7 @@ export function DashboardAdmin() {
         name: detailedUser.full_name || detailedUser.email,
         email: detailedUser.email,
         joinDate: detailedUser.created_at ? new Date(detailedUser.created_at).toLocaleDateString('id-ID') : '-',
-        status: detailedUser.is_verified ? 'Aktif' : 'Tidak Aktif',
+        status: detailedUser.status === 'suspended' ? 'Suspended' : detailedUser.status === 'inactive' ? 'Tidak Aktif' : 'Aktif',
         role: detailedUser.role,
       });
     } catch (err: any) {
@@ -248,10 +258,10 @@ export function DashboardAdmin() {
   const formatStatusLabel = (status: string) => {
     if (!status) return status;
     const normalized = status.toLowerCase();
-    if (normalized === 'pending') return 'Menunggu';
+    if (normalized === 'pending') return 'Menunggu Verifikasi';
     if (normalized === 'completed') return 'Selesai';
     if (normalized === 'processing' || normalized === 'process') return 'Dalam Proses';
-    if (normalized === 'paid') return 'Dibayar';
+    if (normalized === 'paid') return 'Sudah Dibayar';
     if (normalized === 'revision') return 'Revisi';
     if (normalized === 'cancelled') return 'Dibatalkan';
     return status;
@@ -283,22 +293,30 @@ export function DashboardAdmin() {
     </button>
   );
 
-  const stats = dashboardStats
+  // Gabungkan usersData dan sellersData menggunakan Map untuk menghindari duplikat 
+  // agar data seller/freelancer dipastikan tetap tampil di halaman Kelola User.
+  const allPlatformUsersMap = new Map();
+  usersData.forEach(u => allPlatformUsersMap.set(u.id, u));
+  sellersData.forEach(s => allPlatformUsersMap.set(s.id, s));
+  const allPlatformUsers = Array.from(allPlatformUsersMap.values());
+  const platformUsersNoAdmin = allPlatformUsers.filter(u => u.role !== 'admin');
+
+  const stats = loadingUsers && platformUsersNoAdmin.length === 0
     ? [
-        { icon: Users, label: 'Total User', value: dashboardStats.users.total.toLocaleString(), change: '+12%' },
-        { icon: UserCheck, label: 'Active User', value: String(dashboardStats.users.total - (dashboardStats.users.buyers || 0)), change: '+5%' },
-        { icon: ShoppingCart, label: 'Pending User', value: String(dashboardStats.users.total - dashboardStats.users.sellers || 0), change: '+2%' },
-        { icon: UserCheck, label: 'Freelancer', value: dashboardStats.users.sellers.toLocaleString(), change: '+8%' },
-      ]
-    : [
         { icon: Users, label: 'Total User', value: '-', change: '' },
         { icon: UserCheck, label: 'Active User', value: '-', change: '' },
-        { icon: ShoppingCart, label: 'Pending User', value: '-', change: '' },
+        { icon: Clock, label: 'Pending User', value: '-', change: '' },
         { icon: UserCheck, label: 'Freelancer', value: '-', change: '' },
+      ]
+    : [
+        { icon: Users, label: 'Total User', value: platformUsersNoAdmin.length.toLocaleString(), change: '' },
+        { icon: UserCheck, label: 'Active User', value: platformUsersNoAdmin.filter((u) => u.status === 'Aktif').length.toLocaleString(), change: '' },
+        { icon: Clock, label: 'Pending User', value: platformUsersNoAdmin.filter((u) => u.status === 'Tidak Aktif' || u.status === 'Pending').length.toLocaleString(), change: '' },
+        { icon: UserCheck, label: 'Freelancer', value: platformUsersNoAdmin.filter((u) => u.role === 'seller' || u.role === 'freelancer').length.toLocaleString(), change: '' },
       ];
 
   // compute filtered users
-  const filteredUsers = usersData.filter((u) => {
+  const filteredUsers = platformUsersNoAdmin.filter((u) => {
     const q = searchTerm.trim().toLowerCase();
     const matchSearch = q ? (u.name || u.email).toLowerCase().includes(q) : true;
     const matchStatus = filterStatus === 'all' ? true : (u.status || '').toLowerCase() === filterStatus.toLowerCase();
@@ -307,8 +325,15 @@ export function DashboardAdmin() {
     return matchSearch && matchStatus && matchFrom && matchTo;
   });
 
-  const pendingVerifications = paymentsData.length ? paymentsData : dashboardStats?.recent_activity?.payments || [];
-  const recentTransactions = ordersData.length ? ordersData : dashboardStats?.recent_activity?.orders || [];
+  const userPageStats = [
+    { icon: Users, label: 'Total User', value: filteredUsers.length.toString(), change: '' },
+    { icon: UserCheck, label: 'Active User', value: filteredUsers.filter((u) => u.status === 'Aktif').length.toString(), change: '' },
+    { icon: Clock, label: 'Pending User', value: filteredUsers.filter((u) => u.status === 'Tidak Aktif' || u.status === 'Pending').length.toString(), change: '' },
+    { icon: UserCheck, label: 'Freelancer', value: filteredUsers.filter((u) => u.role === 'seller' || u.role === 'freelancer').length.toString(), change: '' },
+  ];
+
+  const pendingVerifications = paymentsData;
+  const recentTransactions = ordersData;
 
   const handleLogout = () => {
     navigate('/');
@@ -335,34 +360,45 @@ export function DashboardAdmin() {
                     <tr className="border-b border-slate-200">
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Order ID</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Buyer</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Seller</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Metode</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(dashboardStats?.recent_activity?.payments?.length ? dashboardStats.recent_activity.payments : pendingVerifications).map((item: any) => {
+                  {pendingVerifications.map((item: any) => {
                       const orderId = item.orderId || item.order_id;
-                      const buyer = item.buyer || item.buyer_name;
-                      const seller = item.seller || item.seller_name;
+                    const buyer = item.buyer || item.buyer_name || '-';
+                    const service = item.service_title || item.service || '-';
+                    const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
                       const date = item.date || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '');
                       const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : item.amount;
 
                       return (
                         <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-4 px-4 text-sm font-medium text-slate-800">{orderId}</td>
+                        <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
                           <td className="py-4 px-4 text-sm text-slate-600">{buyer}</td>
-                          <td className="py-4 px-4 text-sm text-slate-600">{seller}</td>
+                        <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
+                        <td className="py-4 px-4 text-sm text-slate-600 capitalize">{method}</td>
                           <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
                           <td className="py-4 px-4 text-sm text-slate-600">{date}</td>
                           <td className="py-4 px-4">
                             <div className="flex space-x-2">
-                              <button className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
-                                Verifikasi
+                              <button 
+                                className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                onClick={() => handleVerifyPayment(item.id)}
+                                disabled={Boolean(paymentActionLoading[item.id])}
+                              >
+                              {paymentActionLoading[item.id] ? 'Memproses...' : 'Terima'}
                               </button>
-                              <button className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
-                                Tolak
+                              <button 
+                                className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                onClick={() => handleRejectPayment(item.id)}
+                                disabled={Boolean(paymentActionLoading[item.id])}
+                              >
+                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Tolak'}
                               </button>
                             </div>
                           </td>
@@ -430,19 +466,13 @@ export function DashboardAdmin() {
         return (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
-              <div className="md:flex md:items-center md:justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-extrabold text-slate-900">Kelola User</h2>
-                  <p className="text-sm text-slate-500 mt-1">Cari, filter, dan kelola user aktif atau freelancer dengan mudah.</p>
+              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Cari nama atau email" className="pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-white text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-200" />
                 </div>
 
-                <div className="mt-4 md:mt-0 flex items-center gap-3">
-                  <div className="relative">
-                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                    <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Cari nama atau email" className="pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-white text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-200" />
-                  </div>
-
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
                       <Filter className="w-4 h-4 text-slate-500" />
                       <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 bg-white text-sm">
@@ -460,12 +490,11 @@ export function DashboardAdmin() {
                       <span className="text-slate-400">—</span>
                       <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 text-sm" />
                     </div>
-                  </div>
                 </div>
               </div>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {stats.map((s, i) => (
+                {userPageStats.map((s, i) => (
                   <StatCard key={i} icon={s.icon} label={s.label} value={s.value} change={s.change} />
                 ))}
               </div>
@@ -737,7 +766,8 @@ export function DashboardAdmin() {
                   <tr className="border-b border-slate-200">
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Order ID</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Buyer</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Seller</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Metode</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Bukti Bayar</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
@@ -748,20 +778,21 @@ export function DashboardAdmin() {
                   {paymentsLoading ? (
                     Array.from({ length: 5 }).map((_, idx) => (
                       <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
-                        {Array.from({ length: 7 }).map((__, colIdx) => (
+                        {Array.from({ length: 8 }).map((__, colIdx) => (
                           <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
                         ))}
                       </tr>
                     ))
                   ) : paymentsData.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada pembayaran yang perlu diverifikasi.</td>
+                      <td colSpan={8} className="py-12 text-center text-slate-500">Tidak ada pembayaran yang perlu diverifikasi.</td>
                     </tr>
                   ) : (
                     paymentsData.map((item: any) => {
                       const orderId = item.order_id || item.orderId || item.id;
                       const buyer = item.buyer_name || item.buyer || '-';
-                      const seller = item.seller_name || item.seller || '-';
+                      const service = item.service_title || item.service || '-';
+                      const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
                       const paymentProof = item.payment_proof || item.paymentProof || '-';
                       const date = item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-';
                       const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : '-';
@@ -770,9 +801,23 @@ export function DashboardAdmin() {
                         <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
                           <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
                           <td className="py-4 px-4 text-sm text-slate-600">{buyer}</td>
-                          <td className="py-4 px-4 text-sm text-slate-600">{seller}</td>
+                          <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
+                          <td className="py-4 px-4 text-sm text-slate-600 capitalize">{method}</td>
                           <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
-                          <td className="py-4 px-4 text-sm text-blue-600 hover:underline cursor-pointer">{paymentProof}</td>
+                          <td className="py-4 px-4 text-sm">
+                            {paymentProof !== '-' ? (
+                              <a 
+                                href={paymentProof.startsWith('http') || paymentProof.startsWith('blob:') ? paymentProof : `${API_ASSET_URL}${paymentProof.startsWith('/') ? '' : '/'}${paymentProof}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                              >
+                                Lihat Bukti
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 italic">Belum ada</span>
+                            )}
+                          </td>
                           <td className="py-4 px-4 text-sm text-slate-600">{date}</td>
                           <td className="py-4 px-4">
                             <div className="flex flex-wrap gap-2">
@@ -781,7 +826,7 @@ export function DashboardAdmin() {
                                 onClick={() => handleVerifyPayment(item.id)}
                                 disabled={Boolean(paymentActionLoading[item.id])}
                               >
-                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Verifikasi'}
+                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Terima'}
                               </button>
                               <button
                                 className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -871,6 +916,9 @@ export function DashboardAdmin() {
               {sidebarMenus.find(m => m.id === activeMenu)?.label}
             </h1>
             <p className="text-slate-600 mt-2">Kelola platform Grafenda dengan mudah</p>
+            {activeMenu === 'users' && (
+              <p className="text-slate-500 mt-1">Cari, filter, dan kelola user aktif atau freelancer dengan mudah.</p>
+            )}
           </div>
 
           {renderContent()}
