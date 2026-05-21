@@ -29,18 +29,22 @@ class ChatService {
       this.io.to(`order_${order_id}`).emit('new_message', chatMessage);
     }
 
-    // Send notification to receiver
-    const { query } = require('../config/database');
-    const orderResult = await query('SELECT title FROM orders WHERE id = ?', [order_id]);
-    const senderResult = await query('SELECT full_name FROM users WHERE id = ?', [sender_id]);
+    // Send notification to receiver, but don't fail the request if notification fails
+    try {
+      const { query } = require('../config/database');
+      const orderResult = await query('SELECT title FROM orders WHERE id = ?', [order_id]);
+      const senderResult = await query('SELECT full_name FROM users WHERE id = ?', [sender_id]);
 
-    if (orderResult.length > 0 && senderResult.length > 0) {
-      await NotificationService.notifyNewMessage(
-        chatId,
-        receiver_id,
-        senderResult[0].full_name,
-        orderResult[0].title
-      );
+      if (orderResult.length > 0 && senderResult.length > 0) {
+        await NotificationService.notifyNewMessage(
+          chatId,
+          receiver_id,
+          senderResult[0].full_name,
+          orderResult[0].title
+        );
+      }
+    } catch (notificationError) {
+      console.error('Notification failed for chat message:', notificationError);
     }
 
     return chatMessage;
