@@ -1,8 +1,8 @@
 import { Link, useNavigate, useLocation } from "react-router";
 import { Search, Bell, User, LogOut, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { API_ASSET_URL, notificationAPI } from "../../services/api";
+import { API_ASSET_URL, notificationAPI, chatAPI } from "../../services/api";
 
 
 const normalizeAvatarUrl = (avatar?: string | null) => {
@@ -19,6 +19,7 @@ export function Navbar() {
   const [notifications, setNotifications] = useState<Array<any>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
 
@@ -56,6 +57,53 @@ export function Navbar() {
       setIsLoadingNotifications(false);
     }
   };
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let isMounted = true;
+
+    const fetchUnreadChats = async () => {
+      try {
+        let totalUnread = 0;
+        let isFromDashboard = false;
+
+        try {
+          const dashboardAPI = (await import('../../services/api')).dashboardAPI;
+          const dash = userRole === 'seller' ? await dashboardAPI.getSellerDashboard() : await dashboardAPI.getBuyerDashboard();
+          
+          if (dash?.stats?.unread_chats !== undefined) {
+            totalUnread = Number(dash.stats.unread_chats);
+            isFromDashboard = true;
+          }
+        } catch (e) {
+          // Abaikan error dashboard API
+        }
+
+        if (!isFromDashboard) {
+          const data = await chatAPI.getUserChats();
+          const chats = Array.isArray(data) ? data : (data?.data || data?.chats || data?.conversations || []);
+          totalUnread = Array.isArray(chats)
+            ? chats.reduce((sum: number, chat: any) => sum + (Number(chat.unread_count) || 0), 0)
+            : 0;
+        }
+
+        if (!isMounted) return;
+        setUnreadChatCount(totalUnread);
+      } catch (error) {
+        console.error('Failed to fetch unread chats', error);
+      }
+    };
+
+    fetchUnreadChats();
+    const interval = setInterval(fetchUnreadChats, 15000); // Sinkronisasi setiap 15 detik
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user?.id, userRole]);
+
 
 
   return (
@@ -99,9 +147,9 @@ export function Navbar() {
                   className="p-2 hover:bg-slate-100 rounded-lg transition-colors relative"
                 >
                   <MessageCircle className="w-5 h-5 text-slate-600" />
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
-                    3
-                  </span>
+                <span className={`absolute -top-1 -right-1 min-w-5 h-5 ${unreadChatCount > 0 ? 'bg-red-500' : 'bg-slate-400'} text-white text-[10px] font-medium rounded-full px-1 flex items-center justify-center shadow-sm`}>
+                  {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                </span>
                 </Link>
 
 

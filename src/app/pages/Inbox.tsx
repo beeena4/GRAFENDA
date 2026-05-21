@@ -29,25 +29,32 @@ export function Inbox() {
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
+    const load = async (showLoading = true) => {
       try {
-        setLoading(true);
+        if (showLoading) setLoading(true);
         setError(null);
         const data = await chatAPI.getUserChats();
         if (cancelled) return;
-        setConversations(Array.isArray(data) ? data : []);
+        const chats = Array.isArray(data) ? data : (data?.data || data?.chats || data?.conversations || []);
+        setConversations(chats);
       } catch (err: any) {
         if (cancelled) return;
         setError(err?.response?.data?.message || err.message || 'Gagal memuat percakapan');
-        setConversations([]);
+        if (showLoading) setConversations([]);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && showLoading) setLoading(false);
       }
     };
 
     load();
+    
+    const interval = setInterval(() => {
+      load(false);
+    }, 15000); // Polling setiap 15 detik di belakang layar
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, []);
 
@@ -159,4 +166,3 @@ export function Inbox() {
     </div>
   );
 }
-
