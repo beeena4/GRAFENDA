@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { ShoppingCart, Clock, Package, MessageCircle } from "lucide-react";
-import { dashboardAPI } from "../../services/api";
+import { dashboardAPI, chatAPI } from "../../services/api";
 
 export function DashboardUser() {
   const [stats, setStats] = useState({
@@ -38,13 +38,16 @@ export function DashboardUser() {
     };
 
     run();
-    const interval = setInterval(run, 30000); // polling setiap 30 detik untuk dashboard
+    const interval = setInterval(() => {
+      run();
+    }, 15000); // Sinkronisasi setiap 15 detik untuk konsistensi
 
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
   }, []);
+
 
 
 
@@ -83,7 +86,7 @@ export function DashboardUser() {
     { icon: ShoppingCart, label: "Total Pesanan", value: stats.total_orders, color: "from-blue-500 to-blue-600" },
     { icon: Clock, label: "Menunggu Review", value: stats.pending_review, color: "from-yellow-500 to-yellow-600" },
     { icon: Package, label: "Sedang Dikerjakan", value: stats.active_orders, color: "from-green-500 to-green-600" },
-    { icon: MessageCircle, label: "Chat Baru", value: stats.unread_chats, color: "from-purple-500 to-purple-600" },
+    { icon: MessageCircle, label: "Chat Baru", value: stats.unread_chats || 0, color: "from-purple-500 to-purple-600" },
   ];
 
   if (loading) {

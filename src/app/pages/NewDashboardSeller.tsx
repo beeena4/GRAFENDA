@@ -37,9 +37,12 @@ export function NewDashboardSeller() {
     const stored = localStorage.getItem('user');
     if (stored) setUser(JSON.parse(stored));
 
-    const fetchDashboard = async () => {
+    let isMounted = true;
+
+    const fetchData = async () => {
       try {
         const data = await dashboardAPI.getSellerDashboard();
+        if (!isMounted) return;
         setStats(data.stats || {});
         setActiveOrders(data.active_orders || []);
         setMyServices(data.services || []);
@@ -47,11 +50,17 @@ export function NewDashboardSeller() {
       } catch (err) {
         console.error('Failed to fetch dashboard:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
-    fetchDashboard();
+    fetchData();
+    const interval = setInterval(fetchData, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const formatRupiah = (amount: number) =>
@@ -412,9 +421,11 @@ export function NewDashboardSeller() {
         <nav className="mt-6 px-4 flex-1">
           {sidebarMenus.map((menu) => (
             <button key={menu.id} onClick={() => handleMenuClick(menu.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition text-sm font-medium ${activeMenu === menu.id ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-white"}`}>
-              <menu.icon className="w-5 h-5" />
-              <span>{menu.label}</span>
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl mb-2 transition text-sm font-medium ${activeMenu === menu.id ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-white"}`}>
+              <div className="flex items-center gap-3">
+                <menu.icon className="w-5 h-5" />
+                <span>{menu.label}</span>
+              </div>
             </button>
           ))}
         </nav>

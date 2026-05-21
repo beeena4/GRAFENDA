@@ -1,12 +1,36 @@
 import { useParams, useNavigate } from "react-router";
-import { ordersData } from "./mockData";
-import { ArrowLeft, Package, MessageCircle, FileText, MapPin, Star, Clock, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, MessageCircle, Star, Clock, CheckCircle2 } from "lucide-react";
+import { orderAPI } from "../../services/api";
 
 export function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const order = ordersData.find((item) => item.id === Number(id));
+  useEffect(() => {
+    const fetchOrder = async () => {
+      if (!id) return;
+      try {
+        const data = await orderAPI.getOrderById(Number(id));
+        setOrder(data);
+      } catch (err) {
+        console.error("Gagal memuat pesanan", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrder();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center text-slate-500">Memuat detail pesanan...</div>
+      </div>
+    );
+  }
 
   if (!order) {
     return <div className="p-10 text-center">Pesanan tidak ditemukan.</div>;
@@ -14,7 +38,7 @@ export function OrderDetail() {
   
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case "Selesai":
+      case "completed":
         return {
           color: "bg-green-600",
           lightColor: "bg-green-50",
@@ -22,15 +46,14 @@ export function OrderDetail() {
           icon: <CheckCircle2 className="w-10 h-10 text-green-200" />,
           step: 3
         };
-      case "Menunggu Review":
+      case "revision":
         return {
           color: "bg-yellow-500",
           lightColor: "bg-yellow-50",
           textColor: "text-yellow-600",
           icon: <Star className="w-10 h-10 text-yellow-200" />,
-          step: 3
+          step: 2
         };
-      case "Dalam Proses":
       default:
         return {
           color: "bg-blue-600",
@@ -42,7 +65,18 @@ export function OrderDetail() {
     }
   };
 
-  const config = getStatusConfig(order.status);
+  const config = getStatusConfig(order.status || '');
+
+  const formatRupiah = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount || 0);
+
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'Menunggu', paid: 'Dibayar', process: 'Dalam Proses',
+      revision: 'Revisi', completed: 'Selesai', cancelled: 'Dibatalkan',
+    };
+    return map[status] || status;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
@@ -59,7 +93,7 @@ export function OrderDetail() {
           <div className={`${config.color} p-6 text-white flex justify-between items-center transition-colors duration-500`}>
             <div>
               <p className="opacity-80 text-sm">Status Pesanan</p>
-              <h1 className="text-xl font-bold">{order.status}</h1>
+              <h1 className="text-xl font-bold">{getStatusLabel(order.status || '')}</h1>
             </div>
             {config.icon}
           </div>
@@ -95,11 +129,11 @@ export function OrderDetail() {
             <div className="grid grid-cols-2 gap-6 pt-4">
               <div className="p-4 bg-slate-50 rounded-xl">
                 <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Nomor Pesanan</p>
-                <p className="text-sm font-bold text-slate-800">{order.orderId}</p>
+                <p className="text-sm font-bold text-slate-800">GRF-{String(order.id).padStart(6, '0')}</p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl">
                 <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Total Bayar</p>
-                <p className="text-sm font-bold text-blue-600">{order.amount}</p>
+                <p className="text-sm font-bold text-blue-600">{formatRupiah(order.price)}</p>
               </div>
             </div>
 
@@ -109,13 +143,16 @@ export function OrderDetail() {
               
               <div className="grid grid-cols-1 gap-3">
                 {/* Chat Seller */}
-                <button className="flex items-center justify-center space-x-2 w-full py-3 border-2 border-blue-600 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all cursor-pointer">
+                <button 
+                  onClick={() => navigate(`/chat/${order.id}`)}
+                  className="flex items-center justify-center space-x-2 w-full py-3 border-2 border-blue-600 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all cursor-pointer"
+                >
                   <MessageCircle className="w-5 h-5" />
                   <span>Chat Seller</span>
                 </button>
 
                 {/* Beri Review */}
-                {(order.status === "Selesai" || order.status === "Menunggu Review") && (
+                {order.status === "completed" && (
                   <button 
                     onClick={() => navigate(`/order/${order.id}/review`, { 
                       state: { 
@@ -130,7 +167,7 @@ export function OrderDetail() {
                   </button>
                 )}
 
-                {order.status === "Dalam Proses" && (
+                {(order.status === "process" || order.status === "paid") && (
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <p className="text-xs text-blue-700 leading-relaxed text-center italic">
                       "Seller sedang mengerjakan pesananmu. Kamu akan menerima notifikasi jika pengerjaan telah selesai."
