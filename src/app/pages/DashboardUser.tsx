@@ -64,16 +64,16 @@ export function DashboardUser() {
       revision: 'bg-yellow-100 text-yellow-700',
       process: 'bg-blue-100 text-blue-700',
       paid: 'bg-blue-100 text-blue-700',
-      pending: 'bg-gray-100 text-gray-700',
+      pending: 'bg-amber-100 text-amber-700',
       cancelled: 'bg-red-100 text-red-700',
     };
-    return map[status] || 'bg-gray-100 text-gray-700';
+    return map[status] || 'bg-slate-100 text-slate-700';
   };
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
-      pending: 'Menunggu',
-      paid: 'Dibayar',
+      pending: 'Menunggu Verifikasi',
+      paid: 'Sudah Dibayar',
       process: 'Dalam Proses',
       revision: 'Revisi',
       completed: 'Selesai',

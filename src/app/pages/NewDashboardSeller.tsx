@@ -44,7 +44,7 @@ export function NewDashboardSeller() {
         const data = await dashboardAPI.getSellerDashboard();
         if (!isMounted) return;
         setStats(data.stats || {});
-        setActiveOrders(data.active_orders || []);
+        setActiveOrders((data.active_orders || []).filter((o: any) => o.status !== 'pending'));
         setMyServices(data.services || []);
         setEarnings(data.earnings || []);
       } catch (err) {
@@ -65,6 +65,18 @@ export function NewDashboardSeller() {
 
   const formatRupiah = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'Menunggu Verifikasi',
+      paid: 'Sudah Dibayar',
+      process: 'Dalam Proses',
+      revision: 'Revisi',
+      completed: 'Selesai',
+      cancelled: 'Dibatalkan',
+    };
+    return map[status] || status;
+  };
 
   const statCards = [
     { label: "Total Pendapatan", value: formatRupiah(stats.total_earnings), subtext: `+${formatRupiah(stats.pending_earnings)} pending`, icon: DollarSign, bg: "bg-blue-600" },
@@ -114,18 +126,18 @@ export function NewDashboardSeller() {
   }
 };
 
-  const refreshDashboard = async () => {
-    setLoading(true);
+  const refreshDashboard = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await dashboardAPI.getSellerDashboard();
       setStats(data.stats || {});
-      setActiveOrders(data.active_orders || []);
+      setActiveOrders((data.active_orders || []).filter((o: any) => o.status !== 'pending'));
       setMyServices(data.services || []);
       setEarnings(data.earnings || []);
     } catch (err) {
       console.error('Failed to refresh dashboard:', err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -133,7 +145,7 @@ export function NewDashboardSeller() {
     try {
       setLoading(true);
       await orderAPI.updateOrderStatus(orderId, 'process');
-      setActiveOrders((prev) => prev.map((order) => order.id === orderId ? { ...order, status: 'process' } : order));
+      await refreshDashboard(false);
     } catch (err) {
       console.error('Gagal menerima order:', err);
     } finally {
@@ -145,8 +157,7 @@ export function NewDashboardSeller() {
     try {
       setLoading(true);
       await orderAPI.updateOrderStatus(orderId, 'cancelled');
-      setActiveOrders((prev) => prev.map((order) => order.id === orderId ? { ...order, status: 'cancelled' } : order));
-      setStats((prev) => ({ ...prev, active_orders: Math.max((prev.active_orders || 1) - 1, 0) }));
+      await refreshDashboard(false);
     } catch (err) {
       console.error('Gagal menolak order:', err);
     } finally {
@@ -176,9 +187,8 @@ export function NewDashboardSeller() {
       const formData = new FormData();
       formData.append('result_image', file);
 
-      const result = await orderAPI.uploadOrderResult(uploadingOrderId, formData);
-      setActiveOrders((prev) => prev.map((order) => order.id === uploadingOrderId ? { ...order, status: 'completed', result_image: result.result_image } : order));
-      setStats((prev) => ({ ...prev, active_orders: Math.max((prev.active_orders || 1) - 1, 0) }));
+      await orderAPI.uploadOrderResult(uploadingOrderId, formData);
+      await refreshDashboard(false);
       setUploadingOrderId(null);
       // Revoke local preview URL
       try { URL.revokeObjectURL(tempUrl); } catch (e) { /* ignore */ }
@@ -221,13 +231,13 @@ export function NewDashboardSeller() {
                 <p className="text-sm text-slate-400 mt-1">Deadline: {order.delivery_days} hari</p>
               </div>
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                {order.status}
+                {getStatusLabel(order.status)}
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 pt-4">
               <h4 className="font-bold text-slate-800">{formatRupiah(order.price)}</h4>
               <div className="flex items-center gap-2">
-                {order.status === 'pending' && (
+                {order.status === 'paid' && (
                   <>
                     <button
                       onClick={() => handleAcceptOrder(order.id)}
@@ -245,16 +255,13 @@ export function NewDashboardSeller() {
                     </button>
                   </>
                 )}
-                {['paid', 'process', 'revision'].includes(order.status) && (
+                {['process', 'revision'].includes(order.status) && (
                   <button
                     onClick={() => handleUploadResult(order.id)}
                     className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-xl transition"
                   >
-                    <Upload className="w-4 h-4" /><span>Upload Hasil</span>
+                    <Upload className="w-4 h-4" /><span>Kirim Hasil</span>
                   </button>
-                )}
-                {order.status === 'completed' && (
-                  <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">Hasil Terunggah</span>
                 )}
                 {order.status === 'completed' && (
                   <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">Hasil Terunggah</span>
@@ -439,32 +446,58 @@ export function NewDashboardSeller() {
       <main className="flex-1 ml-[260px] p-8 w-[calc(100%-260px)]">
         <div className="max-w-7xl mx-auto w-full">
           <div className="mb-8">
-            <h1 className="text-3xl leading-tight font-bold text-slate-800">Dashboard Freelancer</h1>
-            <p className="text-slate-500 mt-1">Kelola jasa dan order Anda dengan mudah</p>
+            <h1 className="text-3xl leading-tight font-bold text-slate-800">
+              {activeMenu === 'dashboard' ? 'Dashboard Freelancer' :
+               activeMenu === 'orders' ? 'Manajemen Order' :
+               activeMenu === 'services' ? 'Pekerjaan Saya' :
+               activeMenu === 'earnings' ? 'Pendapatan' : 'Dashboard Freelancer'}
+            </h1>
+            <p className="text-slate-500 mt-1">
+              {activeMenu === 'dashboard' ? 'Kelola jasa dan order Anda dengan mudah' :
+               activeMenu === 'orders' ? 'Pantau dan kelola semua pesanan Anda' :
+               activeMenu === 'services' ? 'Kelola semua layanan yang Anda tawarkan' :
+               activeMenu === 'earnings' ? 'Ringkasan pendapatan dan saldo Anda' : ''}
+            </p>
           </div>
-          <div className="grid md:grid-cols-4 gap-5 mb-8">
-          {statCards.map((stat, idx) => (
-            <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500 hover:shadow-lg cursor-pointer">
-              <div className={`w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center mb-4`}>
-                <stat.icon className="w-5 h-5 text-white" />
+          
+          {activeMenu === 'dashboard' && (
+            <>
+              <div className="grid md:grid-cols-4 gap-5 mb-8">
+                {statCards.map((stat, idx) => (
+                  <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500 hover:shadow-lg cursor-pointer">
+                    <div className={`w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center mb-4`}>
+                      <stat.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-sm text-slate-500 mb-1">{stat.label}</p>
+                    <h3 className="text-3xl font-bold text-slate-800">{stat.value}</h3>
+                    <p className="text-sm text-slate-400 mt-1">{stat.subtext}</p>
+                  </div>
+                ))}
               </div>
-              <p className="text-sm text-slate-500 mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-bold text-slate-800">{stat.value}</h3>
-              <p className="text-sm text-slate-400 mt-1">{stat.subtext}</p>
-            </div>
-          ))}
-        </div>
-            <div className="inline-flex gap-7 bg-white border border-slate-200 rounded-2xl p-1 mb-6">
-          {(['orders', 'services', 'earnings'] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-23 py-2 rounded-xl text-sm font-medium transition ${activeTab === tab ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
-              {tab === 'orders' ? 'Manajemen Order' : tab === 'services' ? 'Pekerjaan Saya' : 'Pendapatan'}
-            </button>
-          ))}
-        </div>
-        {activeTab === 'orders' && renderOrders()}
-        {activeTab === 'services' && renderServices()}
-        {activeTab === 'earnings' && renderEarnings()}
+              <div className="inline-flex gap-7 bg-white border border-slate-200 rounded-2xl p-1 mb-6">
+                {(['orders', 'services', 'earnings'] as const).map((tab) => (
+                  <button key={tab} onClick={() => setActiveTab(tab)}
+                    className={`px-23 py-2 rounded-xl text-sm font-medium transition ${activeTab === tab ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+                    {tab === 'orders' ? 'Manajemen Order' : tab === 'services' ? 'Pekerjaan Saya' : 'Pendapatan'}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeMenu === 'dashboard' ? (
+            <>
+              {activeTab === 'orders' && renderOrders()}
+              {activeTab === 'services' && renderServices()}
+              {activeTab === 'earnings' && renderEarnings()}
+            </>
+          ) : (
+            <>
+              {activeMenu === 'orders' && renderOrders()}
+              {activeMenu === 'services' && renderServices()}
+              {activeMenu === 'earnings' && renderEarnings()}
+            </>
+          )}
       </div>
       </main>
     </div>

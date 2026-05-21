@@ -63,8 +63,8 @@ class PaymentController {
         }
       }
 
-      // Update order status to paid
-      await Order.updateStatus(order_id, 'paid');
+      // Order status remains pending until verified by admin
+      // await Order.updateStatus(order_id, 'paid');
 
       // Notify admin for verification
       // In a real app, you'd notify admins here
@@ -120,8 +120,8 @@ class PaymentController {
       if (action === 'verify') {
         await Payment.verifyPayment(id, adminId);
         
-        // Update order status to process
-        await Order.updateStatus(payment.order_id, 'process');
+        // Update order status to paid so seller can process it
+        await Order.updateStatus(payment.order_id, 'paid');
         
         // Generate invoice
         const order = await Order.findById(payment.order_id);
@@ -137,8 +137,10 @@ class PaymentController {
         // Update order status back to pending
         await Order.updateStatus(payment.order_id, 'pending');
         
+        const order = await Order.findById(payment.order_id);
+        
         // Notify buyer
-        await NotificationService.notifyPaymentVerification(id, payment.buyer_id, 'rejected', payment.amount);
+        await NotificationService.notifyPaymentVerification(id, order.buyer_id, 'rejected', payment.amount);
         
         sendSuccess(res, 'Payment rejected');
       } else {

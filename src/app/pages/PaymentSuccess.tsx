@@ -62,8 +62,12 @@ export function PaymentSuccess() {
 
     try {
       const response = await paymentAPI.generateReceipt(payment.id);
-      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
-      const fileName = getFileNameFromDisposition(response.headers['content-disposition']);
+      const contentTypeHeader = response.headers['content-type'];
+      const contentType = typeof contentTypeHeader === 'string' ? contentTypeHeader : 'application/pdf';
+      const blob = new Blob([response.data], { type: contentType });
+      const dispositionHeader = response.headers['content-disposition'];
+      const disposition = typeof dispositionHeader === 'string' ? dispositionHeader : null;
+      const fileName = getFileNameFromDisposition(disposition);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -101,8 +105,8 @@ export function PaymentSuccess() {
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="font-semibold text-slate-800">Pembayaran Berhasil!</p>
-              <p className="text-sm text-slate-600">Pesanan langsung diteruskan ke Penyedia Jasa</p>
+              <p className="font-semibold text-slate-800">Pembayaran Diproses!</p>
+              <p className="text-sm text-slate-600">Menunggu verifikasi admin</p>
             </div>
           </div>
         </div>
@@ -115,15 +119,15 @@ export function PaymentSuccess() {
               <CheckCircle className="w-12 h-12 text-green-600" />
             </div>
 
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Pembayaran Berhasil!</h1>
-            <p className="text-slate-600 mb-8">Terima kasih telah melakukan pembayaran</p>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Menunggu Verifikasi!</h1>
+            <p className="text-slate-600 mb-8">Pembayaran Anda sedang diverifikasi oleh admin</p>
 
             {/* Invoice Dinamis */}
             <div className="bg-slate-50 rounded-xl p-6 mb-8 text-left border border-slate-100">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800">Invoice</h2>
-                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                  Terbayar
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                  Menunggu Verifikasi
                 </span>
               </div>
 
@@ -171,7 +175,7 @@ export function PaymentSuccess() {
 
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8">
               <p className="text-sm text-blue-800">
-                Pembayaran Anda telah kami terima dan disimpan dalam sistem escrow. Penyedia jasa akan mulai mengerjakan pesanan Anda segera.
+                Pembayaran Anda telah kami terima dan sedang dalam proses verifikasi. Setelah disetujui, pesanan akan diteruskan ke penyedia jasa.
               </p>
             </div>
 
