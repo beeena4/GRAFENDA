@@ -2,16 +2,25 @@ import { Link, useNavigate, useLocation } from "react-router";
 import { Search, Bell, User, LogOut, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { API_ASSET_URL, notificationAPI } from "../../services/api";
+
+
+const normalizeAvatarUrl = (avatar?: string | null) => {
+  if (!avatar) return undefined;
+  if (avatar.startsWith('http') || avatar.startsWith('blob:')) return avatar;
+  if (avatar.startsWith('/')) return `${API_ASSET_URL}${avatar}`;
+  return avatar;
+};
 
 export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "Order #1234 telah selesai", time: "2 menit lalu", unread: true },
-    { id: 2, text: "Pembayaran dikonfirmasi", time: "1 jam lalu", unread: true },
-  ]);
+  const [notifications, setNotifications] = useState<Array<any>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+
 
   const { user, logout } = useAuth();
   const isLoggedIn = Boolean(user);
@@ -22,6 +31,32 @@ export function Navbar() {
     navigate('/');
     setShowProfileMenu(false);
   };
+
+  const fetchNotifications = async () => {
+    if (!user?.id) return;
+
+    setIsLoadingNotifications(true);
+    try {
+      const { notifications: items, pagination } = await (await import('../../services/api')).notificationAPI.getUserNotifications({
+        page: 1,
+        limit: 10,
+      });
+
+      setNotifications(items ?? []);
+
+      // unread_count is computed by backend separately (lebih ringan)
+      const unreadRes = await (await import('../../services/api')).notificationAPI.getUnreadCount();
+      setUnreadCount(unreadRes?.unread_count ?? 0);
+
+      // jika backend mengirim unread juga di response list, nanti bisa dipakai
+      void pagination;
+    } catch {
+      // silent fail (UI tetap jalan)
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
 
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-50">
@@ -69,16 +104,26 @@ export function Navbar() {
                   </span>
                 </Link>
 
+
                 <div className="relative">
                   <button
-                    onClick={() => setShowNotifications(!showNotifications)}
+                    onClick={() => {
+                      const next = !showNotifications;
+                      setShowNotifications(next);
+                      if (next) fetchNotifications();
+                    }}
                     className="p-2 hover:bg-slate-100 rounded-lg transition-colors relative"
-                  >
-                    <Bell className="w-5 h-5 text-slate-600" />
-                    {notifications.some(n => n.unread) && (
-                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                    )}
+                >
+                    <div className="relative">
+                      <Bell className="w-5 h-5 text-slate-600" />
+                      {unreadCount > 0 && (
+                      <span className="absolute -top-3 -right-1 min-w-5 h-5 bg-red-500 text-white text-[10px] font-medium rounded-full px-1 flex items-center justify-center">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </button>
+
 
                   {showNotifications && (
                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
@@ -86,18 +131,43 @@ export function Navbar() {
                         <h3 className="font-semibold text-slate-800">Notifikasi</h3>
                       </div>
                       <div className="max-h-96 overflow-y-auto">
-                        {notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={`p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${
-                              notif.unread ? 'bg-blue-50' : ''
-                            }`}
-                          >
-                            <p className="text-sm text-slate-800">{notif.text}</p>
-                            <p className="text-xs text-slate-500 mt-1">{notif.time}</p>
-                          </div>
-                        ))}
+                        {isLoadingNotifications ? (
+                          <div className="p-4 text-sm text-slate-500">Memuat notifikasi...</div>
+                        ) : notifications.length === 0 ? (
+                          <div className="p-4 text-sm text-slate-500">Belum ada notifikasi</div>
+                        ) : (
+                          notifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              className={`p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${
+                                notif.is_read ? '' : 'bg-blue-50'
+                              }`}
+                              onClick={async () => {
+                                if (!notif.is_read) {
+                                  try {
+                                    const { notificationAPI } = await import('../../services/api');
+                                    await notificationAPI.markAsRead(notif.id);
+                                    fetchNotifications();
+                                  } catch {
+                                    // ignore
+                                  }
+                                }
+                              }}
+                            >
+                              <p className="text-sm text-slate-800 font-semibold">
+                                {notif.title || 'Notifikasi'}
+                              </p>
+                              {notif.message && (
+                                <p className="text-sm text-slate-700 mt-1">{notif.message}</p>
+                              )}
+                              <p className="text-xs text-slate-500 mt-1">
+                                {notif.created_at ? new Date(notif.created_at).toLocaleString('id-ID') : ''}
+                              </p>
+                            </div>
+                          ))
+                        )}
                       </div>
+
                     </div>
                   )}
                 </div>
@@ -107,10 +177,10 @@ export function Navbar() {
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
                     className="flex items-center space-x-2 p-2 hover:bg-slate-100 rounded-lg transition-colors"
                   >
-                    {user?.avatar ? (
+                    {normalizeAvatarUrl(user?.avatar ?? null) ? (
                       <img
-                        src={user.avatar}
-                        alt={user.full_name || 'Profil'}
+                        src={normalizeAvatarUrl(user?.avatar ?? null)}
+                        alt={user?.full_name || 'Profil'}
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (

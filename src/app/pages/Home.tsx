@@ -1,10 +1,33 @@
 import { Link, useNavigate } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Sparkles, Pen, Video, Palette, TrendingUp, Shield, Clock, Star, ChevronRight } from "lucide-react";
+import { serviceAPI, API_ASSET_URL } from "../../services/api";
 
 export function Home() {
   const navigate = useNavigate();
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
+  const [popularServices, setPopularServices] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const data = await serviceAPI.getServices(1, 3);
+        setPopularServices(data.services || data || []);
+      } catch (err) {
+        console.error('Gagal fetch services:', err);
+      }
+    };
+    fetchServices();
+  }, []);
+
+  const formatRupiah = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+  const getImageUrl = (image: string) => {
+    if (!image) return 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400';
+    if (image.startsWith('http')) return image;
+    return `${API_ASSET_URL}${image}`;
+  };
 
   const categories = [
     { icon: Palette, name: "Desain Grafis", count: "2,500+ jasa", color: "from-blue-500 to-blue-600" },
@@ -23,36 +46,6 @@ export function Home() {
     { num: "2", title: "Pilih Paket", desc: "Pilih paket yang sesuai dengan kebutuhan Anda" },
     { num: "3", title: "Bayar & Order", desc: "Lakukan pembayaran dengan metode favorit Anda" },
     { num: "4", title: "Terima Hasil", desc: "Dapatkan hasil kerja berkualitas tepat waktu" },
-  ];
-
-  const popularServices = [
-    {
-      id: 1,
-      title: "Desain Logo Profesional",
-      seller: "Design Studio",
-      rating: 4.9,
-      reviews: 250,
-      price: "Rp 150.000",
-      image: "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400",
-    },
-    {
-      id: 2,
-      title: "Video Editing untuk Social Media",
-      seller: "Creative Media",
-      rating: 5.0,
-      reviews: 180,
-      price: "Rp 200.000",
-      image: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400",
-    },
-    {
-      id: 3,
-      title: "Copywriting Website & Landing Page",
-      seller: "WordCraft",
-      rating: 4.8,
-      reviews: 120,
-      price: "Rp 100.000",
-      image: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=400",
-    },
   ];
 
   const reviews = [
@@ -78,9 +71,9 @@ export function Home() {
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-5xl font-bold text-slate-800 mb-6">
               Platform Jasa Kreatif
-             <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent bg-[length:200%_auto] transition-all duration-500 hover:bg-right cursor-default">
-              Mahasiswa Terbaik
-            </span>
+              <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent bg-[length:200%_auto] transition-all duration-500 hover:bg-right cursor-default">
+                Mahasiswa Terbaik
+              </span>
             </h1>
             <p className="text-xl text-slate-600 mb-8">
               Temukan freelancer berbakat untuk mewujudkan proyek kreatif Anda
@@ -88,7 +81,7 @@ export function Home() {
 
             {/* AI Search */}
             <div className="relative max-w-2xl mx-auto group">
-             <div className="flex items-center bg-white rounded-2xl shadow-lg p-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-1xl hover:ring-4 hover:ring-blue-50/50">
+              <div className="flex items-center bg-white rounded-2xl shadow-lg p-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-1xl hover:ring-4 hover:ring-blue-50/50">
                 <div className="flex-1 flex items-center">
                   <Sparkles className="w-6 h-6 text-yellow-500 ml-4 mr-2" />
                   <input
@@ -146,11 +139,11 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Mengapa Memilih Kami?</h2>
           <div className="grid md:grid-cols-3 gap-8">
-          {reasons.map((reason, idx) => (
+            {reasons.map((reason, idx) => (
               <div key={idx} className="group text-center p-6 cursor-default">
-               <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6 transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:-translate-y-2">
-                <reason.icon className="w-8 h-8 text-blue-600 transition-transform duration-300 group-hover:scale-110" />
-              </div>
+                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6 transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:-translate-y-2">
+                  <reason.icon className="w-8 h-8 text-blue-600 transition-transform duration-300 group-hover:scale-110" />
+                </div>
                 <h3 className="text-xl font-semibold mb-2 text-slate-800 transition-all duration-300 group-hover:text-blue-600">
                   {reason.title}
                 </h3>
@@ -168,23 +161,17 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12 text-slate-800">Cara Kerja Grafenda</h2>
           <div className="grid md:grid-cols-4 gap-6">
-          {steps.map((step, idx) => (
-              <div key={idx} className="relative group"> {/* Tambah group di sini */}
+            {steps.map((step, idx) => (
+              <div key={idx} className="relative group">
                 <div className="flex flex-col items-center text-center">
-                  {/* Angka dengan Hover Pop & Glow */}
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 via-violet-400 to-purple-400 text-white flex items-center justify-center text-2xl font-bold mb-4 transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] group-hover:brightness-110 cursor-default">
                     {step.num}
                   </div>
-                  
-                  {/* Judul dengan Hover Gradasi (Senada dengan Reasons) */}
                   <h3 className="text-lg font-semibold mb-2 text-slate-800 transition-all duration-300 group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:to-purple-500 group-hover:bg-clip-text group-hover:text-transparent">
                     {step.title}
                   </h3>
-                  
                   <p className="text-slate-600 text-sm">{step.desc}</p>
                 </div>
-
-                {/* Panah Chevron dengan Hover geser */}
                 {idx < steps.length - 1 && (
                   <ChevronRight className="hidden md:block absolute top-6 -right-4 w-6 h-6 text-slate-300 transition-all duration-300 group-hover:translate-x-2 group-hover:text-indigo-400" />
                 )}
@@ -217,35 +204,51 @@ export function Home() {
               Lihat Semua <ChevronRight className="w-5 h-5 ml-1" />
             </Link>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {popularServices.map((service) => (
-              <Link
-                key={service.id}
-                to={`/service/${service.id}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-slate-200 hover:shadow-xl transition-shadow"
-              >
-                <div className="aspect-video overflow-hidden">
-                  <img
-                    src={service.image}
-                    alt={service.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-slate-800 mb-2 line-clamp-2">{service.title}</h3>
-                  <p className="text-sm text-slate-600 mb-3">{service.seller}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold text-slate-800">{service.rating}</span>
-                      <span className="text-slate-500 text-sm">({service.reviews})</span>
-                    </div>
-                    <span className="font-bold text-blue-600">{service.price}</span>
+
+          {popularServices.length === 0 ? (
+            <p className="text-center text-slate-400 py-12">Belum ada jasa tersedia</p>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6">
+              {popularServices.map((service) => (
+                <Link
+                  key={service.id}
+                  to={`/service/${service.id}`}
+                  className="group bg-white rounded-2xl overflow-hidden border border-slate-200 hover:shadow-xl transition-shadow"
+                >
+                  <div className="aspect-video overflow-hidden">
+                    <img
+                      src={getImageUrl(service.image)}
+                      alt={service.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400';
+                      }}
+                    />
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  <div className="p-5">
+                    <h3 className="font-semibold text-slate-800 mb-2 line-clamp-2">{service.title}</h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      {service.seller_name || service.seller || 'Freelancer'}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-semibold text-slate-800">
+                          {service.rating ? Number(service.rating).toFixed(1) : '0.0'}
+                        </span>
+                        <span className="text-slate-500 text-sm">
+                          ({service.reviews_count ?? service.total_reviews ?? 0})
+                        </span>
+                      </div>
+                      <span className="font-bold text-blue-600">
+                        {formatRupiah(service.price)}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
