@@ -465,4 +465,40 @@ export const paymentAPI = {
   },
 };
 
+// Notifications API
+export const notificationAPI = {
+  getUserNotifications: async (params?: { page?: number; limit?: number; unread_only?: boolean }) => {
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 20;
+    const unread_only = params?.unread_only;
+
+    const url = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+
+    if (typeof unread_only === 'boolean') {
+      url.set('unread_only', String(unread_only));
+    }
+
+    const response = await api.get(`/notifications?${url.toString()}`);
+    return response.data.data;
+  },
+
+  getUnreadCount: async () => {
+    const response = await api.get('/notifications/unread-count');
+    return response.data.data;
+  },
+
+  markAsRead: async (id: number) => {
+    const response = await api.put(`/notifications/${id}/read`);
+    return response.data.data;
+  },
+
+  markAllAsRead: async () => {
+    const response = await api.put('/notifications/mark-all-read');
+    return response.data.data;
+  },
+};
+
 export default api;

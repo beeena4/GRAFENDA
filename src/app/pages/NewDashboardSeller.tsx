@@ -297,8 +297,8 @@ export function NewDashboardSeller() {
         </div>
       </aside>
 
-      <main className="flex-1 ml-[260px] p-8">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 ml-[260px] p-8 w-[calc(100%-260px)]">
+        <div className="max-w-7xl mx-auto w-full">
           <div className="mb-8">
             <h1 className="text-3xl leading-tight font-bold text-slate-800">Dashboard Freelancer</h1>
             <p className="text-slate-500 mt-1">Kelola jasa dan order Anda dengan mudah</p>
@@ -315,10 +315,10 @@ export function NewDashboardSeller() {
             </div>
           ))}
         </div>
-        <div className="inline-flex gap-7 bg-white border border-slate-200 rounded-2xl p-1 mb-6">
+            <div className="inline-flex gap-7 bg-white border border-slate-200 rounded-2xl p-1 mb-6">
           {(['orders', 'services', 'earnings'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-41 py-2 rounded-xl text-sm font-medium transition ${activeTab === tab ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+              className={`px-23 py-2 rounded-xl text-sm font-medium transition ${activeTab === tab ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
               {tab === 'orders' ? 'Manajemen Order' : tab === 'services' ? 'Pekerjaan Saya' : 'Pendapatan'}
             </button>
           ))}
