@@ -125,6 +125,11 @@ export function Chat() {
         message: tempMessage,
         message_type: 'text',
       });
+
+      // Biar chat seller langsung tampil tanpa menunggu polling / refresh halaman
+      const refreshed = await chatAPI.getOrderMessages(order.id);
+      setMessages(Array.isArray(refreshed) ? refreshed : refreshed?.messages || []);
+      setError(null);
     } catch (err: any) {
       console.error('Error sending message:', err);
       const backendMessage = err.response?.data?.message || err.message || 'Gagal mengirim pesan';
