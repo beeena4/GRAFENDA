@@ -98,6 +98,15 @@ router.get('/seller', authenticateToken, async (req, res) => {
       [sellerId]
     );
 
+    // Unread chat counter untuk seller (digunakan oleh dashboard “Chat Baru”)
+    // chats.receiver_id menyimpan ID USER, sedangkan sellerId di sini adalah seller_profiles.id
+    const unreadChats = await db.query(
+      `SELECT COUNT(*) as unread_chats
+       FROM chats
+       WHERE receiver_id = ? AND is_read = 0`,
+      [userId]
+    );
+
     const activeOrders = await db.query(
       `SELECT o.id, o.status, o.price, o.delivery_days, o.created_at,
               s.title,
@@ -143,6 +152,7 @@ router.get('/seller', authenticateToken, async (req, res) => {
           pending_earnings: orders[0].pending_earnings || 0,
           rating: rating[0]?.avg_rating || 0,
           total_earnings: orders[0].total_earnings || 0,
+          unread_chats: unreadChats[0]?.unread_chats || 0
         },
         active_orders: activeOrders,
         services: services,

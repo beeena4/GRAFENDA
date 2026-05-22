@@ -18,11 +18,19 @@ type ChatMessage = {
 
 function resolveImageUrl(url?: string | null) {
   if (!url) return '';
-  if (url.startsWith('http') || url.startsWith('blob:')) return url;
-  // URL relatif
-  if (url.startsWith('/')) return `${API_ASSET_URL}${url}`;
-  return `${API_ASSET_URL}/${url}`;
+  const u = String(url);
+  // sudah absolute
+  if (u.startsWith('http') || u.startsWith('blob:')) return u;
+
+  // API menyimpan relative path seperti: /uploads/chats/xxx.png
+  if (u.startsWith('/')) {
+    return `${API_ASSET_URL}${u}`;
+  }
+
+  // fallback relative tanpa leading slash
+  return `${API_ASSET_URL}/${u}`;
 }
+
 
 
 function getFileKind(file: File): 'image' | 'file' {
@@ -35,6 +43,10 @@ export function Chat() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Auto-message context dari ServiceDetail
+  // (hanya dipakai sekali agar tidak terkirim berulang pada refresh)
+  const initialMessage = (location.state as any)?.initialMessage as string | undefined;
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -60,6 +72,46 @@ export function Chat() {
   }, [messages]);
 
   const currentUserId = user?.id;
+
+  const [didAutoInitialMessage, setDidAutoInitialMessage] = useState(false);
+
+  useEffect(() => {
+    // Kirim 1x auto-message ketika halaman chat dibuka dari ServiceDetail
+    const shouldAutoSend = Boolean(initialMessage) && !didAutoInitialMessage;
+    if (!shouldAutoSend) return;
+    if (!order || !user) return;
+
+    // Hanya ketika chat masih kosong (biar "pesan pertama" terkirim)
+    const isChatEmpty = Array.isArray(messages) ? messages.length === 0 : true;
+    if (!isChatEmpty) return;
+
+    setDidAutoInitialMessage(true);
+
+    const t = setTimeout(async () => {
+      try {
+        if (initialMessage && initialMessage.trim().length > 0) {
+          // Pastikan UI langsung menampilkan message yang baru dikirim
+          // dengan memicu refresh messages setelah sendPayload selesai.
+          await sendPayload({
+            message_type: 'text',
+            message: initialMessage,
+          });
+        }
+      } catch (e) {
+        // Silent fail: jangan mengganggu UI/route
+      } finally {
+        // Bersihkan state agar tidak terkirim berulang saat refresh
+        try {
+          window.history.replaceState({}, document.title);
+        } catch {
+          // ignore
+        }
+      }
+    }, 0);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage, didAutoInitialMessage, order, user, messages.length]);
   const otherPartyAvatar = useMemo(() => {
     const raw = currentUserId === order?.buyer_id ? order?.seller_avatar : order?.buyer_avatar;
     return resolveImageUrl(raw) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100';
@@ -236,18 +288,14 @@ export function Chat() {
       // Backend upload mengembalikan file_url seperti: /uploads/chats/xxx
       // /chat/send memakai express-validator isURL(), jadi harus absolute.
       // API_ASSET_URL sudah berisi base tanpa /api.
-      const absoluteFileUrl = uploadedFileUrl
-        ? uploadedFileUrl.startsWith('http')
-          ? uploadedFileUrl
-          : `${API_ASSET_URL}${uploadedFileUrl.startsWith('/') ? '' : '/'}${uploadedFileUrl}`
-        : undefined;
-
+      const absoluteFileUrl = uploadedFileUrl ? resolveImageUrl(uploadedFileUrl) : undefined;
 
       await sendPayload({
         message_type: kind,
         message: '',
         file_url: absoluteFileUrl,
       });
+
 
       clearSelectedFile();
     } catch (err: any) {
@@ -372,11 +420,13 @@ export function Chat() {
                             alt={msg.file_name || 'Gambar'}
                             className="max-w-[320px] rounded-md border border-white/20"
                             onError={(e) => {
+                              // Jangan sembunyikan image supaya kita bisa lihat masalahnya (URL/404)
+                              // dan supaya user tetap bisa melihat preview.
                               const el = e.currentTarget as HTMLImageElement;
-                              // fallback to force showing something instead of plain text
-                              el.style.display = 'none';
+                              el.style.opacity = '0.5';
                             }}
                           />
+
                           {msg.message ? <p className="leading-relaxed">{msg.message}</p> : null}
                         </div>
                       ) : type === 'file' && fileUrl ? (
@@ -501,4 +551,3 @@ export function Chat() {
     </div>
   );
 }
-

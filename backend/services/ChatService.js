@@ -24,6 +24,15 @@ class ChatService {
       file_url
     });
 
+    // Update timestamp/thread ordering untuk memastikan chat naik di inbox
+    // (Chat list memakai ORDER BY created_at dari chats yang relevan)
+    try {
+      const { query } = require('../config/database');
+      await query('UPDATE chats SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [chatId]);
+    } catch (e) {
+      // ignore agar tidak mengganggu pengiriman chat
+    }
+
     // Get chat message with sender info
     const chatMessage = await this.getMessageById(chatId);
 
