@@ -96,9 +96,8 @@ const profileAvatar = avatarPreview
       case 'completed':
         return 'Selesai';
       case 'pending':
-        return 'Menunggu Verifikasi';
+        return 'Menunggu Review';
       case 'paid':
-        return 'Sudah Dibayar';
       case 'process':
       case 'revision':
         return 'Dalam Proses';
@@ -248,7 +247,7 @@ const profileAvatar = avatarPreview
 
   const getBadgeColor = (status: string) => {
     if (status === "Selesai") return "bg-green-100 text-green-700";
-    if (status === "Menunggu Verifikasi" || status === "Menunggu Review") return "bg-amber-100 text-amber-700";
+    if (status === "Menunggu Review") return "bg-yellow-100 text-yellow-700";
     return "bg-blue-100 text-blue-700";
   };
 
@@ -674,15 +673,27 @@ const profileAvatar = avatarPreview
               <div 
                 className="absolute bottom-0 h-0.5 bg-blue-600 transition-all duration-300 ease-in-out"
                 style={{ 
-                  width: '33.33%', 
-                  left: activeTab === 'overview' ? '0%' : activeTab === 'orders' ? '33.33%' : '66.66%' 
+                  width: user?.role === 'admin' ? '100%' : '33.33%',
+                  left:
+                    user?.role === 'admin'
+                      ? '0%'
+                      : activeTab === 'overview'
+                        ? '0%'
+                        : activeTab === 'orders'
+                          ? '33.33%'
+                          : '66.66%'
                 }}
               />
               
               {[
-                { id: 'overview', label: 'Overview' },
-                { id: 'orders', label: 'My Orders' },
-                { id: 'settings', label: 'Settings' },
+
+                ...(user?.role === 'admin'
+                  ? [{ id: 'settings', label: 'Settings' }]
+                  : [
+                      { id: 'overview', label: 'Overview' },
+                      { id: 'orders', label: 'My Orders' },
+                      { id: 'settings', label: 'Settings' },
+                    ]),
               ].map((tab) => (
                 <button
                   key={tab.id}

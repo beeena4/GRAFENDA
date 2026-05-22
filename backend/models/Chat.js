@@ -66,7 +66,7 @@ class Chat {
       JOIN users b ON o.buyer_id = b.id
       JOIN seller_profiles sp ON o.seller_id = sp.id
       JOIN users u ON sp.user_id = u.id
-      WHERE (o.buyer_id = ? OR sp.user_id = ?) AND o.status IN ('paid', 'process', 'revision', 'completed')
+      WHERE (o.buyer_id = ? OR sp.user_id = ?) AND o.status IN ('paid', 'process', 'revision', 'completed', 'pending')
       ORDER BY last_message_time DESC
     `;
     

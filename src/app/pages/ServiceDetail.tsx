@@ -80,10 +80,103 @@ export function ServiceDetail() {
     };
   }, [id]);
 
-  // Handler navigasi yang membawa data context realtime
-  const handleChatNavigation = () => {
-    // Karena chat di backend terikat pada order, kita arahkan ke halaman chat yang dapat mencari order
-    navigate(`/chat/${id}`, { state: { serviceName: service?.title } });
+  // Handler: Find/Create room chat (berbasis order_id) lalu navigasi ke chat yang tepat
+  // + kirim initialMessage agar Chat.tsx bisa auto-kirim pesan pertama
+  const handleChatSeller = async () => {
+    try {
+      if (!service) return;
+
+      // backend chat memakai order_id, bukan service_id
+      // service.id => id (params) di halaman ini
+      // seller user id biasanya ada di service.seller_id
+      const serviceId = Number(id);
+      const sellerUserId = service.seller_id;
+
+      if (!Number.isFinite(serviceId) || serviceId < 1) {
+        navigate('/search');
+        return;
+      }
+
+      // Kalau sistem mengharuskan order dibuat dulu untuk chat
+      // kita buat order baru dari service (gunakan paket yang dipilih agar sesuai harga)
+      if (!selectedPackageId) {
+        // tetap aman: fallback ke pesan sekarang agar order dibuat dulu
+        // (tidak mengubah UI, hanya mengarahkan)
+        return;
+      }
+
+      // Cari apakah sudah ada chat/order yang terkait seller ini
+      // (pakai endpoint chat list yang sudah ada)
+      let existingOrderId: number | null = null;
+
+      try {
+        // lazy import agar tidak menambah beban bundle awal
+        const { chatAPI, orderAPI } = await import('../../services/api');
+        const chatsData = await chatAPI.getUserChats();
+        const chats = Array.isArray(chatsData)
+          ? chatsData
+          : (chatsData?.data || chatsData?.chats || chatsData?.conversations || []);
+
+        // Respons chat list punya field: o.id (order id), title, other_party...
+        // Pada implementation sekarang, tidak jelas ada service_id.
+        // Jadi kita fallback dengan match via sellerUserId bila tersedia.
+        for (const c of chats) {
+          if (!c) continue;
+          if (sellerUserId != null && (c.seller_user_id === sellerUserId || c.receiver_id === sellerUserId || c.buyer_id === sellerUserId)) {
+            if (c.id) {
+              existingOrderId = Number(c.id);
+              break;
+            }
+          }
+
+          // Fallback: jika backend tidak mengirim buyer_id/seller_id di list,
+          // kita tidak bisa mengandalkan filter; lanjut create order.
+        }
+
+
+      } catch {
+        // silent fail (tetap lanjut create)
+      }
+
+        if (existingOrderId && Number.isFinite(existingOrderId)) {
+        const initialMessage = `Halo, saya tertarik dengan jasa *${service?.title}* seharga *${selectedPackage?.price ?? ''}*. Apakah sedang available?`;
+        navigate(`/chat/${existingOrderId}`, {
+          state: {
+            serviceName: service?.title,
+            orderId: existingOrderId,
+            initialMessage,
+          },
+        });
+        return;
+      }
+
+      // Create order baru sebagai basis room chat
+      const { orderAPI, chatAPI } = await import('../../services/api');
+
+      // Pastikan payload sesuai validasi backend: service_id dan package_id
+      const createdOrder = await orderAPI.createOrder({
+        service_id: serviceId,
+        package_id: selectedPackageId,
+        title: service?.title,
+        description: service?.description,
+      });
+
+      const newOrderId = createdOrder?.id;
+      if (!newOrderId) {
+        // Jika backend respons tidak berisi id, fallback ke error
+        navigate('/search');
+        return;
+      }
+
+      // (Opsional) lakukan quick fetch messages supaya UI chat langsung terisi
+      // tapi Chat page sudah punya polling/subscribe.
+      void chatAPI;
+
+      navigate(`/chat/${newOrderId}`, { state: { serviceName: service?.title, orderId: newOrderId } });
+    } catch (err: any) {
+      // Aman: jangan rusak routing dashboard/admin/user
+      navigate('/search');
+    }
   };
 
   const handlePaymentNavigation = () => {
@@ -206,7 +299,7 @@ export function ServiceDetail() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={handleChatNavigation}
+                    onClick={handleChatSeller}
                     className="flex items-center justify-center space-x-2 px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 hover:shadow-md active:scale-95 transition-all cursor-pointer duration-200"
                   >
                     <MessageCircle className="w-5 h-5" />

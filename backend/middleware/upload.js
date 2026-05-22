@@ -42,7 +42,31 @@ const uploadAvatar = upload.single('avatar');
 const uploadPortfolio = upload.array('portfolio', 10); // Max 10 files
 const uploadPaymentProof = upload.single('payment_proof');
 const uploadServiceImages = upload.array('images', 5); // Max 5 images for service
-const uploadChatFile = upload.single('file');
+
+// ===== CHAT FILES: simpan ke folder /uploads/chats supaya URL `/uploads/chats/...` valid =====
+const chatUploadDir = path.join(__dirname, '../uploads/chats');
+if (!fs.existsSync(chatUploadDir)) {
+  fs.mkdirSync(chatUploadDir, { recursive: true });
+}
+
+const chatStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, chatUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadChatFile = multer({
+  storage: chatStorage,
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024,
+  },
+  fileFilter: fileFilter
+}).single('file');
+
 const uploadOrderResult = upload.single('result_image');
 
 module.exports = {

@@ -247,13 +247,22 @@ export function Navbar() {
                       >
                         Profil Saya
                       </Link>
-                      <Link
-                        to={userRole === 'seller' ? '/dashboard/seller' : '/dashboard/user'}
-                        className="block px-4 py-3 hover:bg-slate-50 text-slate-700"
-                        onClick={() => setShowProfileMenu(false)}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (user?.role === 'admin') {
+                            navigate('/dashboard/admin');
+                          } else if (user?.role === 'seller') {
+                            navigate('/dashboard/seller');
+                          } else {
+                            navigate('/dashboard/user');
+                          }
+                          setShowProfileMenu(false);
+                        }}
+                        className="block w-full text-left px-4 py-3 hover:bg-slate-50 text-slate-700"
                       >
                         Dashboard
-                      </Link>
+                      </button>
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 flex items-center space-x-2 border-t border-slate-200"
