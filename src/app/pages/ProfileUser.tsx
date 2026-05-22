@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from "react-router";
 import { useState, useEffect } from "react";
-import { User, Mail, Phone, MapPin, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft, X, AlertCircle, CheckCircle, Lock } from "lucide-react";
+import { User, Mail, Phone, Edit, Save, ShoppingCart, Star, Clock, ArrowLeft, AlertCircle, CheckCircle, Lock } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { authAPI, dashboardAPI, API_ASSET_URL } from "../../services/api";
 
@@ -23,8 +23,10 @@ export function ProfileUser() {
   const location = useLocation();
   const { user, updateProfile, changePassword, isLoading } = useAuth();
 
+  const isAdmin = user?.role === 'admin';
+
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'settings'>(
-    location.state?.activeTab || 'overview'
+    isAdmin ? 'settings' : (location.state?.activeTab || 'overview')
   );
 
   const [profile, setProfile] = useState<ProfileState>(initialProfile);
@@ -42,18 +44,18 @@ export function ProfileUser() {
     { label: "Dalam Proses", value: "0", icon: Clock },
   ]);
 
-const normalizeAvatarUrl = (avatar: string) => {
-  if (!avatar) return '';
-  if (avatar.startsWith('http') || avatar.startsWith('blob:')) return avatar;
-  if (avatar.startsWith('/')) return `${API_ASSET_URL}${avatar}`;
-  return avatar;
-};
+  const normalizeAvatarUrl = (avatar: string) => {
+    if (!avatar) return '';
+    if (avatar.startsWith('http') || avatar.startsWith('blob:')) return avatar;
+    if (avatar.startsWith('/')) return `${API_ASSET_URL}${avatar}`;
+    return avatar;
+  };
 
-const profileAvatar = avatarPreview
-  ? normalizeAvatarUrl(avatarPreview)
-  : profile.avatar
-  ? normalizeAvatarUrl(profile.avatar)
-  : 'https://via.placeholder.com/150?text=Avatar';
+  const profileAvatar = avatarPreview
+    ? normalizeAvatarUrl(avatarPreview)
+    : profile.avatar
+    ? normalizeAvatarUrl(profile.avatar)
+    : 'https://via.placeholder.com/150?text=Avatar';
   const profileName = profile.full_name || 'Pengguna';
   const profileEmail = profile.email || 'Email tidak tersedia';
 
@@ -66,13 +68,12 @@ const profileAvatar = avatarPreview
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  // Load profile data on component mount
   useEffect(() => {
     loadProfile();
   }, []);
 
   useEffect(() => {
-    if (location.state?.activeTab) {
+    if (!isAdmin && location.state?.activeTab) {
       setActiveTab(location.state.activeTab);
     }
   }, [location.state]);
@@ -93,16 +94,12 @@ const profileAvatar = avatarPreview
 
   const formatOrderStatus = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'Selesai';
-      case 'pending':
-        return 'Menunggu Review';
+      case 'completed': return 'Selesai';
+      case 'pending': return 'Menunggu Review';
       case 'paid':
       case 'process':
-      case 'revision':
-        return 'Dalam Proses';
-      default:
-        return status;
+      case 'revision': return 'Dalam Proses';
+      default: return status;
     }
   };
 
@@ -110,39 +107,54 @@ const profileAvatar = avatarPreview
     try {
       setIsLoadingProfile(true);
 
-      const [profileData, dashboardData] = await Promise.all([
-        authAPI.getProfile(),
-        dashboardAPI.getBuyerDashboard(),
-      ]);
+      if (isAdmin) {
+        // Admin: hanya load profil, tanpa dashboard
+        const profileData = await authAPI.getProfile();
+        const normalizedProfile = {
+          full_name: profileData?.full_name || '',
+          email: profileData?.email || '',
+          phone: profileData?.phone || '',
+          avatar: profileData?.avatar || '',
+        };
+        setProfile(normalizedProfile);
+        setDraftProfile(normalizedProfile);
+      } else {
+        const [profileData, dashboardData] = await Promise.all([
+          authAPI.getProfile(),
+          dashboardAPI.getBuyerDashboard(),
+        ]);
 
-      const normalizedProfile = {
-        full_name: profileData?.full_name || '',
-        email: profileData?.email || '',
-        phone: profileData?.phone || '',
-        avatar: profileData?.avatar || '',
-      };
+        const normalizedProfile = {
+          full_name: profileData?.full_name || '',
+          email: profileData?.email || '',
+          phone: profileData?.phone || '',
+          avatar: profileData?.avatar || '',
+        };
 
-      setProfile(normalizedProfile);
-      setDraftProfile(normalizedProfile);
+        setProfile(normalizedProfile);
+        setDraftProfile(normalizedProfile);
 
-      const dashboardStats = dashboardData?.stats || {};
-      setStats([
-        { label: 'Total Pesanan', value: String(dashboardStats.total_orders || 0), icon: ShoppingCart },
-        { label: 'Menunggu Review', value: String(dashboardStats.pending_review || 0), icon: Star },
-        { label: 'Order Aktif', value: String(dashboardStats.active_orders || 0), icon: Clock },
-      ]);
+        const dashboardStats = dashboardData?.stats || {};
+        setStats([
+          { label: 'Total Pesanan', value: String(dashboardStats.total_orders || 0), icon: ShoppingCart },
+          { label: 'Menunggu Review', value: String(dashboardStats.pending_review || 0), icon: Star },
+          { label: 'Order Aktif', value: String(dashboardStats.active_orders || 0), icon: Clock },
+        ]);
 
-      const mappedOrders = (dashboardData?.recent_orders || []).map((order: any) => ({
-        id: order.id,
-        orderId: `GRF-${String(order.id).padStart(6, '0')}`,
-        service: order.service_title || 'Pesanan',
-        seller: order.seller_name || '',
-        status: formatOrderStatus(order.status),
-        date: order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
-        amount: order.price ? `Rp ${Number(order.price).toLocaleString('id-ID')}` : '-',
-      }));
+        const mappedOrders = (dashboardData?.recent_orders || []).map((order: any) => ({
+          id: order.id,
+          orderId: `GRF-${String(order.id).padStart(6, '0')}`,
+          service: order.service_title || 'Pesanan',
+          seller: order.seller_name || '',
+          status: formatOrderStatus(order.status),
+          date: order.created_at
+            ? new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+            : '',
+          amount: order.price ? `Rp ${Number(order.price).toLocaleString('id-ID')}` : '-',
+        }));
 
-      setOrders(mappedOrders);
+        setOrders(mappedOrders);
+      }
     } catch (error: any) {
       setErrorMessage('Gagal memuat profil: ' + error.message);
     } finally {
@@ -170,7 +182,6 @@ const profileAvatar = avatarPreview
         formData.append('full_name', draftProfile.full_name || '');
         formData.append('phone', draftProfile.phone || '');
         formData.append('avatar', avatarFile);
-
         updatedProfile = await updateProfile(formData);
       } else {
         updatedProfile = await updateProfile(draftProfile);
@@ -209,7 +220,6 @@ const profileAvatar = avatarPreview
       setPasswordError('Password baru dan konfirmasi tidak cocok');
       return;
     }
-
     if (passwordData.new_password.length < 8) {
       setPasswordError('Password baru minimal 8 karakter');
       return;
@@ -218,11 +228,7 @@ const profileAvatar = avatarPreview
     try {
       await changePassword(passwordData.current_password, passwordData.new_password);
       setPasswordSuccess('Password berhasil diubah');
-      setPasswordData({
-        current_password: '',
-        new_password: '',
-        confirm_password: '',
-      });
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
       setTimeout(() => setPasswordSuccess(''), 3000);
     } catch (error: any) {
       setPasswordError(error.message || 'Gagal mengubah password');
@@ -232,6 +238,8 @@ const profileAvatar = avatarPreview
   const handleCancel = () => {
     setIsEditing(false);
     setDraftProfile(profile);
+    setAvatarFile(null);
+    setAvatarPreview(profile.avatar || '');
     setErrorMessage('');
   };
 
@@ -239,11 +247,10 @@ const profileAvatar = avatarPreview
     if (isEditing) {
       handleSaveProfile();
     } else {
-      setDraftProfile(profile);
+      setDraftProfile({ ...profile });
       setIsEditing(true);
     }
   };
-
 
   const getBadgeColor = (status: string) => {
     if (status === "Selesai") return "bg-green-100 text-green-700";
@@ -251,16 +258,252 @@ const profileAvatar = avatarPreview
     return "bg-blue-100 text-blue-700";
   };
 
+  // Tab list berdasarkan role
+  const tabs = isAdmin
+    ? [{ id: 'settings', label: 'Settings' }]
+    : [
+        { id: 'overview', label: 'Overview' },
+        { id: 'orders', label: 'My Orders' },
+        { id: 'settings', label: 'Settings' },
+      ];
+
+  // Posisi indikator tab
+  const tabIndex = tabs.findIndex((t) => t.id === activeTab);
+  const indicatorLeft = `${(tabIndex / tabs.length) * 100}%`;
+  const indicatorWidth = `${100 / tabs.length}%`;
+
+  // ─── Settings Tab Content (shared) ───────────────────────────────────────────
+  const renderSettings = () => (
+    <div className="space-y-6">
+      {/* Profile Edit Section */}
+      <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-slate-800">Edit Profil</h3>
+          <button
+            onClick={handleToggleEdit}
+            disabled={isLoading}
+            className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
+          >
+            {isEditing ? (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Simpan</span>
+              </>
+            ) : (
+              <>
+                <Edit className="w-4 h-4" />
+                <span>Edit</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <span className="text-red-700 text-sm">{errorMessage}</span>
+          </div>
+        )}
+        {successMessage && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+            <span className="text-green-700 text-sm">{successMessage}</span>
+          </div>
+        )}
+
+        {isLoadingProfile ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-slate-600">Memuat profil...</span>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Avatar */}
+            <div className="flex flex-col md:flex-row items-center gap-4 rounded-xl border border-slate-200 p-4 bg-white">
+              <div className="flex-shrink-0">
+                <div className="relative w-24 h-24 rounded-full overflow-hidden border border-slate-200 bg-slate-100">
+                  <img
+                    src={profileAvatar}
+                    alt="Foto Profil"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Avatar';
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-slate-600">Foto Profil</p>
+                {isEditing ? (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                    disabled={isLoading}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-500">Klik Edit untuk mengubah foto profil</p>
+                )}
+              </div>
+            </div>
+
+            {/* Nama */}
+            <div className="flex items-center space-x-3">
+              <User className="w-5 h-5 text-slate-400" />
+              <div className="flex-1">
+                <p className="text-sm text-slate-600">Nama Lengkap</p>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={draftProfile.full_name}
+                    onChange={(e) => setDraftProfile({ ...draftProfile, full_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    disabled={isLoading}
+                  />
+                ) : (
+                  <p className="font-medium text-slate-800">{profile.full_name || 'Belum diisi'}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Email (read-only) */}
+            <div className="flex items-center space-x-3">
+              <Mail className="w-5 h-5 text-slate-400" />
+              <div className="flex-1">
+                <p className="text-sm text-slate-600">Email</p>
+                <p className="font-medium text-slate-800">{profile.email}</p>
+                <p className="text-xs text-slate-500">Email tidak dapat diubah</p>
+              </div>
+            </div>
+
+            {/* Telepon */}
+            <div className="flex items-center space-x-3">
+              <Phone className="w-5 h-5 text-slate-400" />
+              <div className="flex-1">
+                <p className="text-sm text-slate-600">Nomor Telepon</p>
+                {isEditing ? (
+                  <input
+                    type="tel"
+                    value={draftProfile.phone || ''}
+                    onChange={(e) => setDraftProfile({ ...draftProfile, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    placeholder="+62 xxx-xxxx-xxxx"
+                    disabled={isLoading}
+                  />
+                ) : (
+                  <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isEditing && (
+          <div className="flex space-x-2 mt-4">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+              disabled={isLoading}
+            >
+              Batal
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Change Password Section */}
+      <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
+        <h3 className="font-bold text-slate-800 mb-4">Ubah Password</h3>
+
+        {passwordError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <span className="text-red-700 text-sm">{passwordError}</span>
+          </div>
+        )}
+        {passwordSuccess && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+            <span className="text-green-700 text-sm">{passwordSuccess}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Password Lama</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="password"
+                value={passwordData.current_password}
+                onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                placeholder="Masukkan password lama"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Password Baru</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="password"
+                value={passwordData.new_password}
+                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                placeholder="Minimal 8 karakter"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Konfirmasi Password Baru</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="password"
+                value={passwordData.confirm_password}
+                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                placeholder="Ulangi password baru"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-3 rounded-lg hover:opacity-90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Mengubah Password...
+              </>
+            ) : (
+              'Ubah Password'
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
         return (
           <div className="space-y-6">
-            {/* Stats Cards */}
+            {/* Stats Cards — hanya untuk non-admin */}
             <div className="grid md:grid-cols-3 gap-6">
               {stats.map((stat, idx) => (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm hover:border-blue-300 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -272,20 +515,18 @@ const profileAvatar = avatarPreview
               ))}
             </div>
 
-            {/* Kotak Informasi Profil */}
+            {/* Informasi Profil */}
             <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-800">Informasi Profil</h3>
               </div>
 
-              {/* Error/Success Messages */}
               {errorMessage && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
                   <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
                   <span className="text-red-700 text-sm">{errorMessage}</span>
                 </div>
               )}
-
               {successMessage && (
                 <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
                   <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
@@ -304,17 +545,7 @@ const profileAvatar = avatarPreview
                     <User className="w-5 h-5 text-slate-400" />
                     <div className="flex-1">
                       <p className="text-sm text-slate-600">Nama Lengkap</p>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={draftProfile.full_name}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, full_name: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.full_name || 'Belum diisi'}</p>
-                      )}
+                      <p className="font-medium text-slate-800">{profile.full_name || 'Belum diisi'}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
@@ -322,39 +553,15 @@ const profileAvatar = avatarPreview
                     <div className="flex-1">
                       <p className="text-sm text-slate-600">Email</p>
                       <p className="font-medium text-slate-800">{profile.email}</p>
-                      <p className="text-xs text-slate-500">Email tidak dapat diubah</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Phone className="w-5 h-5 text-slate-400" />
                     <div className="flex-1">
                       <p className="text-sm text-slate-600">Nomor Telepon</p>
-                      {isEditing ? (
-                        <input
-                          type="tel"
-                          value={draftProfile.phone || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, phone: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          placeholder="+62 xxx-xxxx-xxxx"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
-                      )}
+                      <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {isEditing && (
-                <div className="flex space-x-2 mt-4">
-                  <button
-                    onClick={handleCancel}
-                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
-                    disabled={isLoading}
-                  >
-                    Batal
-                  </button>
                 </div>
               )}
             </div>
@@ -364,9 +571,12 @@ const profileAvatar = avatarPreview
       case 'orders':
         return (
           <div className="space-y-4">
+            {orders.length === 0 && (
+              <p className="text-center text-slate-500 py-8">Belum ada pesanan.</p>
+            )}
             {orders.map((order) => (
-              <div 
-                key={order.id} 
+              <div
+                key={order.id}
                 className="bg-slate-50 rounded-xl p-6 border border-slate-100 hover:border-blue-300 hover:shadow-md hover:bg-white transition-all duration-300"
               >
                 <div className="flex justify-between items-start mb-4">
@@ -391,11 +601,10 @@ const profileAvatar = avatarPreview
                     >
                       Detail
                     </Link>
-                    
                     {(order.status === "Selesai" || order.status === "Menunggu Review") && (
                       <Link
                         to={`/order/${order.id}/review`}
-                        state={{ from: 'profile-orders' }}   
+                        state={{ from: 'profile-orders' }}
                         className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm shadow-sm"
                       >
                         Beri Review
@@ -409,226 +618,7 @@ const profileAvatar = avatarPreview
         );
 
       case 'settings':
-        return (
-          <div className="space-y-6">
-            {/* Profile Edit Section */}
-            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-800">Edit Profil</h3>
-                <button
-                  onClick={handleToggleEdit}
-                  disabled={isLoading}
-                  className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
-                >
-                  {isEditing ? (
-                    <>
-                      <Save className="w-4 h-4" />
-                      <span>Simpan</span>
-                    </>
-                  ) : (
-                    <>
-                      <Edit className="w-4 h-4" />
-                      <span>Edit</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Error/Success Messages */}
-              {errorMessage && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                  <span className="text-red-700 text-sm">{errorMessage}</span>
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-green-700 text-sm">{successMessage}</span>
-                </div>
-              )}
-
-              {isLoadingProfile ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <span className="ml-2 text-slate-600">Memuat profil...</span>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex flex-col md:flex-row items-center gap-4 rounded-xl border border-slate-200 p-4 bg-white">
-                    <div className="flex-shrink-0">
-                      <div className="relative w-24 h-24 rounded-full overflow-hidden border border-slate-200 bg-slate-100">
-                        <img
-                          src={profileAvatar}
-                          alt="Foto Profil"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Avatar';
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <p className="text-sm text-slate-600">Foto Profil</p>
-                      {isEditing ? (
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarChange}
-                          className="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="text-sm text-slate-500">Klik Edit untuk mengubah foto profil</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <User className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Nama Lengkap</p>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={draftProfile.full_name}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, full_name: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.full_name || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Mail className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Email</p>
-                      <p className="font-medium text-slate-800">{profile.email}</p>
-                      <p className="text-xs text-slate-500">Email tidak dapat diubah</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Phone className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-600">Nomor Telepon</p>
-                      {isEditing ? (
-                        <input
-                          type="tel"
-                          value={draftProfile.phone || ''}
-                          onChange={(e) => setDraftProfile({ ...draftProfile, phone: e.target.value })}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          placeholder="+62 xxx-xxxx-xxxx"
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <p className="font-medium text-slate-800">{profile.phone || 'Belum diisi'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isEditing && (
-                <div className="flex space-x-2 mt-4">
-                  <button
-                    onClick={handleCancel}
-                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
-                    disabled={isLoading}
-                  >
-                    Batal
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Change Password Section */}
-            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4">Ubah Password</h3>
-
-              {/* Password Error/Success Messages */}
-              {passwordError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                  <span className="text-red-700 text-sm">{passwordError}</span>
-                </div>
-              )}
-
-              {passwordSuccess && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <span className="text-green-700 text-sm">{passwordSuccess}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Password Lama</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      type="password"
-                      value={passwordData.current_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      placeholder="Masukkan password lama"
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Password Baru</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      type="password"
-                      value={passwordData.new_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      placeholder="Minimal 8 karakter"
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Konfirmasi Password Baru</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      type="password"
-                      value={passwordData.confirm_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      placeholder="Ulangi password baru"
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-3 rounded-lg hover:opacity-90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Mengubah Password...
-                    </>
-                  ) : (
-                    'Ubah Password'
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        );
+        return renderSettings();
 
       default:
         return null;
@@ -639,7 +629,7 @@ const profileAvatar = avatarPreview
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <button
-          onClick={() => navigate('/dashboard/user')}
+          onClick={() => navigate(isAdmin ? '/dashboard/admin' : '/dashboard/user')}
           className="flex items-center space-x-2 text-slate-600 hover:text-blue-600 mb-6 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -649,10 +639,10 @@ const profileAvatar = avatarPreview
         {/* Profile Header */}
         <div className="bg-white rounded-2xl shadow-sm p-8 mb-6">
           <div className="flex items-center space-x-6">
-            <img 
-              src={profileAvatar} 
-              alt={profileName} 
-              className="w-24 h-24 rounded-full border-4 border-blue-100 object-cover" 
+            <img
+              src={profileAvatar}
+              alt={profileName}
+              className="w-24 h-24 rounded-full border-4 border-blue-100 object-cover"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Avatar';
               }}
@@ -660,6 +650,11 @@ const profileAvatar = avatarPreview
             <div>
               <h1 className="text-3xl font-bold text-slate-800">{profileName}</h1>
               <p className="text-slate-600 mt-1">{profileEmail}</p>
+              {isAdmin && (
+                <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                  Admin
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -667,34 +662,13 @@ const profileAvatar = avatarPreview
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-sm mb-6">
           <div className="border-b border-slate-200">
-            <div className="flex relative"> 
-              
-              {/* INDIKATOR GESER */}
-              <div 
+            <div className="flex relative">
+              {/* Indikator geser */}
+              <div
                 className="absolute bottom-0 h-0.5 bg-blue-600 transition-all duration-300 ease-in-out"
-                style={{ 
-                  width: user?.role === 'admin' ? '100%' : '33.33%',
-                  left:
-                    user?.role === 'admin'
-                      ? '0%'
-                      : activeTab === 'overview'
-                        ? '0%'
-                        : activeTab === 'orders'
-                          ? '33.33%'
-                          : '66.66%'
-                }}
+                style={{ width: indicatorWidth, left: indicatorLeft }}
               />
-              
-              {[
-
-                ...(user?.role === 'admin'
-                  ? [{ id: 'settings', label: 'Settings' }]
-                  : [
-                      { id: 'overview', label: 'Overview' },
-                      { id: 'orders', label: 'My Orders' },
-                      { id: 'settings', label: 'Settings' },
-                    ]),
-              ].map((tab) => (
+              {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
