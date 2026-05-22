@@ -21,7 +21,7 @@ import {
   Trash,
   Clock,
 } from "lucide-react";
-import { adminAPI, API_ASSET_URL } from "../../services/api";
+import { adminAPI, authAPI, API_ASSET_URL } from "../../services/api";
 
 export function DashboardAdmin() {
   const navigate = useNavigate();
@@ -43,6 +43,8 @@ export function DashboardAdmin() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
+  const [adminAvatar, setAdminAvatar] = useState('');
+
   const currentUserName = (() => {
     try {
       const u = localStorage.getItem('user');
@@ -53,6 +55,13 @@ export function DashboardAdmin() {
     } catch (e) {}
     return 'Admin';
   })();
+
+  const normalizeAvatarUrl = (avatar: string) => {
+    if (!avatar) return '';
+    if (avatar.startsWith('http') || avatar.startsWith('blob:')) return avatar;
+    if (avatar.startsWith('/')) return `${API_ASSET_URL}${avatar}`;
+    return avatar;
+  };
 
   const sidebarMenus = [
     { id: 'dashboard', icon: Home, label: 'Dashboard' },
@@ -65,7 +74,6 @@ export function DashboardAdmin() {
   const loadDashboardStats = async (showLoading = true) => {
     if (showLoading) setLoadingDashboard(true);
     setError(null);
-
     try {
       const dashboardData = await adminAPI.getDashboardStats();
       setDashboardStats(dashboardData);
@@ -79,7 +87,6 @@ export function DashboardAdmin() {
   const loadUsersData = async (showLoading = true) => {
     if (showLoading) setLoadingUsers(true);
     setError(null);
-
     try {
       const usersResult = await adminAPI.getUsers(1, 100);
       setUsersData(
@@ -120,7 +127,6 @@ export function DashboardAdmin() {
   const loadOrdersData = async (showLoading = true) => {
     if (showLoading) setOrdersLoading(true);
     setError(null);
-
     try {
       const ordersResult = await adminAPI.getOrders(1, 100);
       setOrdersData(ordersResult.orders);
@@ -135,7 +141,6 @@ export function DashboardAdmin() {
   const loadPaymentsData = async (showLoading = true) => {
     if (showLoading) setPaymentsLoading(true);
     setError(null);
-
     try {
       const paymentsResult = await adminAPI.getPendingPayments(1, 100);
       setPaymentsData(paymentsResult.payments);
@@ -147,6 +152,19 @@ export function DashboardAdmin() {
     }
   };
 
+  // Load admin profile avatar
+  useEffect(() => {
+    const loadAdminProfile = async () => {
+      try {
+        const profileData = await authAPI.getProfile();
+        if (profileData?.avatar) {
+          setAdminAvatar(normalizeAvatarUrl(profileData.avatar));
+        }
+      } catch (e) {}
+    };
+    loadAdminProfile();
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     const loadData = async (showLoading = true) => {
@@ -155,7 +173,7 @@ export function DashboardAdmin() {
         loadDashboardStats(showLoading),
         loadUsersData(showLoading),
         loadOrdersData(showLoading),
-        loadPaymentsData(showLoading)
+        loadPaymentsData(showLoading),
       ]);
     };
 
@@ -165,7 +183,7 @@ export function DashboardAdmin() {
       if (isMounted) {
         loadData(false);
       }
-    }, 5000); // Polling lebih cepat untuk realtime sinkronisasi
+    }, 5000);
 
     return () => {
       isMounted = false;
@@ -193,7 +211,6 @@ export function DashboardAdmin() {
   const handleDeleteUser = async (user: any) => {
     setActionLoading((prev) => ({ ...prev, [user.id]: true }));
     setError(null);
-
     try {
       await adminAPI.deleteUser(user.id);
       await loadUsersData();
@@ -210,7 +227,6 @@ export function DashboardAdmin() {
   const handleVerifyPayment = async (paymentId: number) => {
     setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
     setError(null);
-
     try {
       await adminAPI.verifyPayment(paymentId, 'verify');
       await loadPaymentsData();
@@ -225,7 +241,6 @@ export function DashboardAdmin() {
   const handleRejectPayment = async (paymentId: number) => {
     setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
     setError(null);
-
     try {
       await adminAPI.verifyPayment(paymentId, 'reject');
       await loadPaymentsData();
@@ -293,8 +308,7 @@ export function DashboardAdmin() {
     </button>
   );
 
-  // Gabungkan usersData dan sellersData menggunakan Map untuk menghindari duplikat 
-  // agar data seller/freelancer dipastikan tetap tampil di halaman Kelola User.
+  // Gabungkan usersData dan sellersData menggunakan Map untuk menghindari duplikat
   const allPlatformUsersMap = new Map();
   usersData.forEach(u => allPlatformUsersMap.set(u.id, u));
   sellersData.forEach(s => allPlatformUsersMap.set(s.id, s));
@@ -345,11 +359,11 @@ export function DashboardAdmin() {
         return (
           <>
             {/* Stats */}
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
-            {stats.map((s, i) => (
-              <StatCard key={i} icon={s.icon} label={s.label} value={s.value} change={s.change} />
-            ))}
-          </div>
+            <div className="grid md:grid-cols-4 gap-6 mb-8">
+              {stats.map((s, i) => (
+                <StatCard key={i} icon={s.icon} label={s.label} value={s.value} change={s.change} />
+              ))}
+            </div>
 
             {/* Pending Verifications */}
             <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
@@ -360,40 +374,40 @@ export function DashboardAdmin() {
                     <tr className="border-b border-slate-200">
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Order ID</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Buyer</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Metode</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Metode</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
-                  {pendingVerifications.map((item: any) => {
+                    {pendingVerifications.map((item: any) => {
                       const orderId = item.orderId || item.order_id;
-                    const buyer = item.buyer || item.buyer_name || '-';
-                    const service = item.service_title || item.service || '-';
-                    const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
+                      const buyer = item.buyer || item.buyer_name || '-';
+                      const service = item.service_title || item.service || '-';
+                      const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
                       const date = item.date || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '');
                       const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : item.amount;
 
                       return (
                         <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
+                          <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
                           <td className="py-4 px-4 text-sm text-slate-600">{buyer}</td>
-                        <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
-                        <td className="py-4 px-4 text-sm text-slate-600 capitalize">{method}</td>
+                          <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
+                          <td className="py-4 px-4 text-sm text-slate-600 capitalize">{method}</td>
                           <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
                           <td className="py-4 px-4 text-sm text-slate-600">{date}</td>
                           <td className="py-4 px-4">
                             <div className="flex space-x-2">
-                              <button 
+                              <button
                                 className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
                                 onClick={() => handleVerifyPayment(item.id)}
                                 disabled={Boolean(paymentActionLoading[item.id])}
                               >
-                              {paymentActionLoading[item.id] ? 'Memproses...' : 'Terima'}
+                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Terima'}
                               </button>
-                              <button 
+                              <button
                                 className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
                                 onClick={() => handleRejectPayment(item.id)}
                                 disabled={Boolean(paymentActionLoading[item.id])}
@@ -473,23 +487,23 @@ export function DashboardAdmin() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <Filter className="w-4 h-4 text-slate-500" />
-                      <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 bg-white text-sm">
-                        <option value="all">Semua Status</option>
-                        <option value="Aktif">Aktif</option>
-                        <option value="Tidak Aktif">Tidak Aktif</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Suspended">Suspended</option>
-                      </select>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-slate-500" />
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 bg-white text-sm">
+                      <option value="all">Semua Status</option>
+                      <option value="Aktif">Aktif</option>
+                      <option value="Tidak Aktif">Tidak Aktif</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Suspended">Suspended</option>
+                    </select>
+                  </div>
 
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-slate-500" />
-                      <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 text-sm" />
-                      <span className="text-slate-400">—</span>
-                      <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 text-sm" />
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-slate-500" />
+                    <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 text-sm" />
+                    <span className="text-slate-400">—</span>
+                    <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="py-2 px-3 rounded-lg border border-slate-200 text-sm" />
+                  </div>
                 </div>
               </div>
 
@@ -806,10 +820,10 @@ export function DashboardAdmin() {
                           <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
                           <td className="py-4 px-4 text-sm">
                             {paymentProof !== '-' ? (
-                              <a 
-                                href={paymentProof.startsWith('http') || paymentProof.startsWith('blob:') ? paymentProof : `${API_ASSET_URL}${paymentProof.startsWith('/') ? '' : '/'}${paymentProof}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                              <a
+                                href={paymentProof.startsWith('http') || paymentProof.startsWith('blob:') ? paymentProof : `${API_ASSET_URL}${paymentProof.startsWith('/') ? '' : '/'}${paymentProof}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="text-blue-600 hover:underline inline-flex items-center gap-1"
                               >
                                 Lihat Bukti
@@ -868,33 +882,54 @@ export function DashboardAdmin() {
         </div>
 
         <nav className="p-3 pb-24 space-y-1">
-        {sidebarMenus.map((menu) => (
-          <button
-            key={menu.id}
-            onClick={() => setActiveMenu(menu.id)}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
-              activeMenu === menu.id
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
-            }`}
-          >
-            <menu.icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
-              activeMenu === menu.id ? 'text-white' : 'group-hover:scale-110'
-            }`} />
-            <span className={`text-[13px] font-medium leading-tight whitespace-nowrap overflow-hidden ${
-              menu.label.length > 18 ? 'tracking-tighter' : 'tracking-tight'
-            }`}>
-              {menu.label}
-            </span>
-          </button>
-        ))}
-      </nav>
+          {sidebarMenus.map((menu) => (
+            <button
+              key={menu.id}
+              onClick={() => setActiveMenu(menu.id)}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
+                activeMenu === menu.id
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              <menu.icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                activeMenu === menu.id ? 'text-white' : 'group-hover:scale-110'
+              }`} />
+              <span className={`text-[13px] font-medium leading-tight whitespace-nowrap overflow-hidden ${
+                menu.label.length > 18 ? 'tracking-tighter' : 'tracking-tight'
+              }`}>
+                {menu.label}
+              </span>
+            </button>
+          ))}
+        </nav>
 
+        {/* Sidebar Bottom: Avatar + Nama + Logout */}
         <div className="absolute bottom-0 left-0 w-full p-4 border-t border-slate-200 bg-white">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">{(currentUserName || 'A').charAt(0)}</div>
-            <div>
-              <div className="text-sm font-semibold text-slate-800">{currentUserName}</div>
+            {/* Avatar: foto profil jika ada, fallback ke inisial */}
+            {adminAvatar ? (
+              <img
+                src={adminAvatar}
+                alt={currentUserName}
+                className="w-10 h-10 rounded-full object-cover border-2 border-blue-100 flex-shrink-0"
+                onError={(e) => {
+                  // Kalau gambar gagal load, sembunyikan dan tampilkan fallback
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            {/* Fallback inisial — ditampilkan jika tidak ada avatar atau gambar gagal */}
+            <div
+              className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+              style={{ display: adminAvatar ? 'none' : 'flex' }}
+            >
+              {(currentUserName || 'A').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-800 truncate">{currentUserName}</div>
               <div className="text-xs text-slate-500">Administrator</div>
             </div>
           </div>
