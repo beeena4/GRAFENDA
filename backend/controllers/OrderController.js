@@ -195,7 +195,8 @@ class OrderController {
         return sendError(res, 'Order tidak dapat diunggah hasilnya', 400);
       }
 
-      const resultImageUrl = `/uploads/${req.file.filename}`;
+      // Path disesuaikan dengan folder tujuan Multer
+      const resultImageUrl = `/uploads/results/${req.file.filename}`;
       await Order.updateResultImage(id, resultImageUrl);
       await Order.updateStatus(id, 'completed', userId);
 

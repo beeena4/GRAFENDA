@@ -14,12 +14,14 @@ class Payment {
     const sql = `
       SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status,
              b.full_name as buyer_name, b.email as buyer_email,
-             sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email
+             sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email,
+             svc.title as service_title
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      JOIN users b ON o.buyer_id = b.id
-      JOIN seller_profiles sp ON o.seller_id = sp.id
-      JOIN users u ON sp.user_id = u.id
+      LEFT JOIN users b ON o.buyer_id = b.id
+      LEFT JOIN seller_profiles sp ON o.seller_id = sp.id
+      LEFT JOIN users u ON sp.user_id = u.id
+      LEFT JOIN services svc ON o.service_id = svc.id
       WHERE p.id = ?
     `;
     const payments = await query(sql, [id]);
@@ -37,23 +39,25 @@ class Payment {
     const sql = `
       SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status,
              b.full_name as buyer_name, b.email as buyer_email,
-             sp.user_id as seller_user_id, u.full_name as seller_name
+             sp.user_id as seller_user_id, u.full_name as seller_name,
+             svc.title as service_title
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      JOIN users b ON o.buyer_id = b.id
-      JOIN seller_profiles sp ON o.seller_id = sp.id
-      JOIN users u ON sp.user_id = u.id
-      WHERE p.status = 'verified' AND o.status = 'completed' AND p.released_at IS NULL
-      ORDER BY p.verified_at ASC
+      LEFT JOIN users b ON o.buyer_id = b.id
+      LEFT JOIN seller_profiles sp ON o.seller_id = sp.id
+      LEFT JOIN users u ON sp.user_id = u.id
+      LEFT JOIN services svc ON o.service_id = svc.id
+      WHERE p.status IN ('pending', 'verified') AND o.status = 'completed' AND p.released_at IS NULL
+      ORDER BY p.created_at ASC
       LIMIT ? OFFSET ?
     `;
     const payments = await query(sql, [limit, offset]);
 
     const countSql = `
-      SELECT COUNT(*) as total
+      SELECT COUNT(p.id) as total
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      WHERE p.status = 'verified' AND o.status = 'completed' AND p.released_at IS NULL
+      WHERE p.status IN ('pending', 'verified') AND o.status = 'completed' AND p.released_at IS NULL
     `;
     const countResult = await query(countSql);
     const total = countResult[0].total;
@@ -110,12 +114,14 @@ class Payment {
     const sql = `
       SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status,
              b.full_name as buyer_name, b.email as buyer_email,
-             sp.user_id as seller_user_id, u.full_name as seller_name
+             sp.user_id as seller_user_id, u.full_name as seller_name,
+             svc.title as service_title
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      JOIN users b ON o.buyer_id = b.id
-      JOIN seller_profiles sp ON o.seller_id = sp.id
-      JOIN users u ON sp.user_id = u.id
+      LEFT JOIN users b ON o.buyer_id = b.id
+      LEFT JOIN seller_profiles sp ON o.seller_id = sp.id
+      LEFT JOIN users u ON sp.user_id = u.id
+      LEFT JOIN services svc ON o.service_id = svc.id
       WHERE p.status = 'pending' AND o.status = 'completed'
       ORDER BY p.created_at ASC
       LIMIT ? OFFSET ?
@@ -125,7 +131,7 @@ class Payment {
     
     // Get total count
     const countSql = `
-      SELECT COUNT(*) as total
+      SELECT COUNT(p.id) as total
       FROM payments p
       JOIN orders o ON p.order_id = o.id
       WHERE p.status = 'pending' AND o.status = 'completed'
@@ -166,21 +172,30 @@ class Payment {
     const offset = (page - 1) * limit;
 
     const sql = `
-      SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status, o.created_at as order_created_at,
+      SELECT p.id, p.order_id, p.amount, p.payment_method, p.payment_proof, 
+       p.verified_by, p.verified_at, p.released_at, p.created_at, p.updated_at,
+             CASE 
+               WHEN p.status = 'released' THEN 'released'
+               WHEN o.status = 'completed' AND p.status IN ('pending', 'verified') THEN 'completed'
+               ELSE p.status 
+             END as status,
+             o.title as order_title, o.price as order_price, o.status as order_status, o.created_at as order_created_at,
              b.full_name as buyer_name, b.email as buyer_email,
-             sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email
+             sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email,
+             svc.title as service_title
       FROM payments p
-      JOIN orders o ON p.order_id = o.id
-      JOIN users b ON o.buyer_id = b.id
-      JOIN seller_profiles sp ON o.seller_id = sp.id
-      JOIN users u ON sp.user_id = u.id
+      LEFT JOIN orders o ON p.order_id = o.id
+      LEFT JOIN users b ON o.buyer_id = b.id
+      LEFT JOIN seller_profiles sp ON o.seller_id = sp.id
+      LEFT JOIN users u ON sp.user_id = u.id
+      LEFT JOIN services svc ON o.service_id = svc.id
       ORDER BY p.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
     const transactions = await query(sql, [limit, offset]);
 
-    const countSql = `SELECT COUNT(*) as total FROM payments`;
+    const countSql = `SELECT COUNT(id) as total FROM payments`;
     const countResult = await query(countSql);
     const total = countResult[0].total;
 

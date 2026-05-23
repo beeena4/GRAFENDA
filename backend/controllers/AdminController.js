@@ -24,11 +24,11 @@ class AdminController {
                sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email,
                svc.title as service_title, pkg.name as package_name
         FROM orders o
-        JOIN users b ON o.buyer_id = b.id
-        JOIN seller_profiles sp ON o.seller_id = sp.id
-        JOIN users u ON sp.user_id = u.id
-        JOIN services svc ON o.service_id = svc.id
-        JOIN service_packages pkg ON o.package_id = pkg.id
+        LEFT JOIN users b ON o.buyer_id = b.id
+        LEFT JOIN seller_profiles sp ON o.seller_id = sp.id
+        LEFT JOIN users u ON sp.user_id = u.id
+        LEFT JOIN services svc ON o.service_id = svc.id
+        LEFT JOIN service_packages pkg ON o.package_id = pkg.id
         ORDER BY o.created_at DESC
         LIMIT 1000
       `);
@@ -45,7 +45,20 @@ class AdminController {
 
       // Recent activities
       const recentOrders = orders.slice(0, 5);
-      const recentPayments = await Payment.getPendingPayments(1, 5);
+      const recentPaymentsData = await query(`
+  SELECT 
+    p.*,
+    o.status as order_status,
+    b.full_name as buyer_name,
+    s.title as service_title
+  FROM payments p
+  JOIN orders o ON p.order_id = o.id
+  LEFT JOIN users b ON o.buyer_id = b.id
+  LEFT JOIN services s ON o.service_id = s.id
+  WHERE o.status = 'completed' AND p.status = 'pending'
+  ORDER BY p.created_at DESC
+  LIMIT 10
+`);
 
       const stats = {
         users: {
@@ -69,7 +82,7 @@ class AdminController {
         revenue: revenueStats,
         recent_activity: {
           orders: recentOrders,
-          payments: recentPayments.payments
+          payments: recentPaymentsData
         }
       };
 
@@ -173,45 +186,52 @@ class AdminController {
   }
 
   // Get all orders
+  // Get all orders
   static async getAllOrders(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const status = req.query.status;
 
-      // Get all orders with admin access
+      // 1. Panggil koneksi database
       const { query } = require('../config/database');
+
+      // 2. Gunakan 'let sql' agar bisa ditambahkan WHERE dan LIMIT di bawahnya
       let sql = `
-        SELECT o.*, 
-               b.full_name as buyer_name, b.email as buyer_email,
-               s.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email,
-               svc.title as service_title, pkg.name as package_name
+        SELECT 
+          o.*, 
+          s.title AS service_title, 
+          sp.user_id AS seller_user_id,
+          u.full_name AS seller_name,
+          u.email AS seller_email,
+          b.full_name AS buyer_name,
+          b.email AS buyer_email
         FROM orders o
-        JOIN users b ON o.buyer_id = b.id
-        JOIN seller_profiles sp ON o.seller_id = sp.id
-        JOIN users u ON sp.user_id = u.id
-        JOIN services svc ON o.service_id = svc.id
-        JOIN service_packages pkg ON o.package_id = pkg.id
+        LEFT JOIN services s ON o.service_id = s.id
+        LEFT JOIN seller_profiles sp ON o.seller_id = sp.id
+        LEFT JOIN users u ON sp.user_id = u.id
+        LEFT JOIN users b ON o.buyer_id = b.id
       `;
 
       const params = [];
-      if (status) {
-        sql += ' WHERE o.status = ?';
-        params.push(status);
-      }
+      // if (status) {
+      //   sql += ' WHERE o.status = ?';
+      //   params.push(status);
+      // }
 
       sql += ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
       params.push(limit, (page - 1) * limit);
 
+      // 3. Eksekusi query
       const orders = await query(sql, params);
 
       // Get total count
-      let countSql = 'SELECT COUNT(*) as total FROM orders';
+      let countSql = 'SELECT COUNT(o.id) as total FROM orders o';
       const countParams = [];
-      if (status) {
-        countSql += ' WHERE status = ?';
-        countParams.push(status);
-      }
+      // if (status) {
+      //   countSql += ' WHERE o.status = ?';
+      //   countParams.push(status);
+      // }
 
       const countResult = await query(countSql, countParams);
       const total = countResult[0].total;
