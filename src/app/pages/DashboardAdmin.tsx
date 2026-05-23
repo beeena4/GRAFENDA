@@ -20,6 +20,8 @@ import {
   Check,
   Trash,
   Clock,
+  HelpCircle,
+  AlertCircle,
 } from "lucide-react";
 import { adminAPI, authAPI, API_ASSET_URL } from "../../services/api";
 
@@ -46,6 +48,10 @@ export function DashboardAdmin() {
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
   const [adminAvatar, setAdminAvatar] = useState('');
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
   const currentUserName = (() => {
     try {
@@ -57,6 +63,14 @@ export function DashboardAdmin() {
     } catch (e) {}
     return 'Admin';
   })();
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
 
   const normalizeAvatarUrl = (avatar: string) => {
     if (!avatar) return '';
@@ -251,22 +265,29 @@ export function DashboardAdmin() {
     }
   };
 
-  const handleVerifyPayment = async (paymentId: number) => {
-    const confirmMsg = "Apakah Anda yakin ingin memverifikasi pesanan ini? Dana akan langsung dicairkan ke penjual.";
-    if (!window.confirm(confirmMsg)) return;
+  const handleVerifyPaymentClick = (paymentId: number) => {
+    setSelectedPaymentId(paymentId);
+    setVerifyModalOpen(true);
+  };
+
+  const executeVerifyPayment = async () => {
+    if (!selectedPaymentId) return;
+    const paymentId = selectedPaymentId;
+    setVerifyModalOpen(false);
+    setSelectedPaymentId(null);
 
     setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
     setError(null);
     try {
       await adminAPI.verifyPayment(paymentId, 'verify');
-      alert("Sukses! Verifikasi berhasil dan dana telah dicairkan.");
+      showToast("Sukses! Verifikasi berhasil dan dana telah dicairkan.", "success");
       await loadPaymentsData();
       await loadDashboardStats();
       await loadOrdersData(false);
       await loadTransactionsData(false);
     } catch (err: any) {
       setError(err?.message || 'Gagal memverifikasi pembayaran');
-      alert(err?.response?.data?.message || err?.message || "Terjadi kesalahan saat memverifikasi.");
+      showToast(err?.response?.data?.message || err?.message || "Terjadi kesalahan saat memverifikasi.", "error");
     } finally {
       setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: false }));
     }
@@ -429,7 +450,7 @@ export function DashboardAdmin() {
                             <div className="flex space-x-2">
                               <button
                                 className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                                onClick={() => handleVerifyPayment(item.id)}
+                                onClick={() => handleVerifyPaymentClick(item.id)}
                                 disabled={Boolean(paymentActionLoading[item.id])}
                               >
                                 {paymentActionLoading[item.id] ? 'Memproses...' : 'Verifikasi'}
@@ -857,7 +878,7 @@ export function DashboardAdmin() {
                             <div className="flex flex-wrap gap-2">
                               <button
                                 className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                                onClick={() => handleVerifyPayment(item.id)}
+                                onClick={() => handleVerifyPaymentClick(item.id)}
                                 disabled={Boolean(paymentActionLoading[item.id])}
                               >
                                 {paymentActionLoading[item.id] ? 'Memproses...' : 'Verifikasi'}
@@ -972,6 +993,52 @@ export function DashboardAdmin() {
           {renderContent()}
         </div>
       </div>
+
+      {/* Modal Konfirmasi Pencairan Dana */}
+      {verifyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 text-center transform transition-all">
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+              <HelpCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Konfirmasi Pencairan Dana</h3>
+            <p className="text-slate-600 mb-8">
+              Apakah Anda yakin ingin memverifikasi pesanan ini? Dana akan langsung diteruskan ke saldo penjual.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setVerifyModalOpen(false);
+                  setSelectedPaymentId(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={executeVerifyPayment}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Verifikasi & Cairkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Toast Notification */}
+      {toastMessage && (
+        <div className={`fixed top-8 right-8 z-[60] flex items-center p-4 rounded-xl shadow-lg transform transition-all duration-300 ease-in-out ${
+          toastType === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+        }`}>
+          {toastType === 'success' ? (
+            <CheckCircle className="w-5 h-5 mr-3" />
+          ) : (
+            <AlertCircle className="w-5 h-5 mr-3" />
+          )}
+          <p className="text-sm font-medium">{toastMessage}</p>
+        </div>
+      )}
     </div>
   );
 }
