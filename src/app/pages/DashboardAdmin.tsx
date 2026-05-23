@@ -38,9 +38,7 @@ export function DashboardAdmin() {
   const [ordersData, setOrdersData] = useState<any[]>([]);
   const [paymentsData, setPaymentsData] = useState<any[]>([]);
   const [transactionsData, setTransactionsData] = useState<any[]>([]);
-  const [releasePaymentsData, setReleasePaymentsData] = useState<any[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(true);
-  const [releasePaymentsLoading, setReleasePaymentsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -160,8 +158,9 @@ export function DashboardAdmin() {
     if (showLoading) setTransactionsLoading(true);
     setError(null);
     try {
+      // Pastikan fetch tanpa filter, dan ambil array langsung dari berbagai kemungkinan payload
       const transactionsResult = await adminAPI.getTransactionHistory(1, 100);
-      setTransactionsData(transactionsResult.transactions);
+      setTransactionsData(transactionsResult.transactions || transactionsResult.orders || transactionsResult.data || []);
     } catch (err: any) {
       setError(err?.message || 'Gagal memuat riwayat transaksi');
       setTransactionsData([]);
@@ -170,19 +169,6 @@ export function DashboardAdmin() {
     }
   };
 
-  const loadReleasePaymentsData = async (showLoading = true) => {
-    if (showLoading) setReleasePaymentsLoading(true);
-    setError(null);
-    try {
-      const releaseResult = await adminAPI.getPendingReleasePayments(1, 100);
-      setReleasePaymentsData(releaseResult.payments);
-    } catch (err: any) {
-      setError(err?.message || 'Gagal memuat data release pembayaran');
-      setReleasePaymentsData([]);
-    } finally {
-      if (showLoading) setReleasePaymentsLoading(false);
-    }
-  };
 
   // Load admin profile avatar
   useEffect(() => {
@@ -207,7 +193,6 @@ export function DashboardAdmin() {
         loadOrdersData(showLoading),
         loadPaymentsData(showLoading),
         loadTransactionsData(showLoading),
-        loadReleasePaymentsData(showLoading),
       ]);
     };
 
@@ -259,52 +244,26 @@ export function DashboardAdmin() {
   };
 
   const handleVerifyPayment = async (paymentId: number) => {
+    const confirmMsg = "Apakah Anda yakin ingin memverifikasi pesanan ini? Dana akan langsung dicairkan ke penjual.";
+    if (!window.confirm(confirmMsg)) return;
+
     setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
     setError(null);
     try {
       await adminAPI.verifyPayment(paymentId, 'verify');
+      alert("Sukses! Verifikasi berhasil dan dana telah dicairkan.");
       await loadPaymentsData();
       await loadDashboardStats();
       await loadOrdersData(false);
-      await loadReleasePaymentsData(false);
+      await loadTransactionsData(false);
     } catch (err: any) {
       setError(err?.message || 'Gagal memverifikasi pembayaran');
+      alert(err?.response?.data?.message || err?.message || "Terjadi kesalahan saat memverifikasi.");
     } finally {
       setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: false }));
     }
   };
 
-  const handleRejectPayment = async (paymentId: number) => {
-    setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
-    setError(null);
-    try {
-      await adminAPI.verifyPayment(paymentId, 'reject');
-      await loadPaymentsData();
-      await loadDashboardStats();
-      await loadOrdersData(false);
-      await loadReleasePaymentsData(false);
-    } catch (err: any) {
-      setError(err?.message || 'Gagal menolak pembayaran');
-    } finally {
-      setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: false }));
-    }
-  };
-
-  const handleReleasePayment = async (paymentId: number) => {
-    setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
-    setError(null);
-    try {
-      await adminAPI.releasePayment(paymentId);
-      await loadReleasePaymentsData();
-      await loadPaymentsData(false);
-      await loadDashboardStats(false);
-      await loadOrdersData(false);
-    } catch (err: any) {
-      setError(err?.message || 'Gagal mencairkan dana');
-    } finally {
-      setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: false }));
-    }
-  };
 
   // Small reusable components
   const StatCard = ({ icon: Icon, label, value, change }: any) => (
@@ -465,14 +424,7 @@ export function DashboardAdmin() {
                                 onClick={() => handleVerifyPayment(item.id)}
                                 disabled={Boolean(paymentActionLoading[item.id])}
                               >
-                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Terima'}
-                              </button>
-                              <button
-                                className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                                onClick={() => handleRejectPayment(item.id)}
-                                disabled={Boolean(paymentActionLoading[item.id])}
-                              >
-                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Tolak'}
+                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Verifikasi'}
                               </button>
                             </div>
                           </td>
@@ -509,7 +461,7 @@ export function DashboardAdmin() {
                       const status = txn.status || txn.order_status || '-';
                       const date = txn.date || (txn.created_at ? new Date(txn.created_at).toLocaleDateString('id-ID') : '-');
                       const amountValue = txn.amount || txn.price || 0;
-                      const amount = typeof amountValue === 'number' ? `Rp ${amountValue.toLocaleString('id-ID')}` : amountValue;
+                      const amount = `Rp ${Number(amountValue).toLocaleString('id-ID')}`;
 
                       return (
                         <tr key={txn.id} className="border-b border-slate-100 hover:bg-slate-50">
@@ -519,9 +471,9 @@ export function DashboardAdmin() {
                           <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
                           <td className="py-4 px-4">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              status === 'completed' || status === 'Selesai' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                              status.toLowerCase() === 'completed' || status.toLowerCase() === 'selesai' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                             }`}>
-                              {status}
+                              {formatStatusLabel(status)}
                             </span>
                           </td>
                           <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
@@ -716,7 +668,6 @@ export function DashboardAdmin() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <ActionButton title="Detail" icon={Eye} onClick={() => handleViewUserDetail(seller)} />
                           <ActionButton
                             title="Delete"
                             icon={Trash}
@@ -858,7 +809,6 @@ export function DashboardAdmin() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Metode</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Bukti Bayar</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
                   </tr>
@@ -867,14 +817,14 @@ export function DashboardAdmin() {
                   {paymentsLoading ? (
                     Array.from({ length: 5 }).map((_, idx) => (
                       <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
-                        {Array.from({ length: 8 }).map((__, colIdx) => (
+                        {Array.from({ length: 7 }).map((__, colIdx) => (
                           <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
                         ))}
                       </tr>
                     ))
                   ) : paymentsData.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-500">Tidak ada pembayaran yang perlu diverifikasi.</td>
+                      <td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada pembayaran yang perlu diverifikasi.</td>
                     </tr>
                   ) : (
                     paymentsData.map((item: any) => {
@@ -882,7 +832,6 @@ export function DashboardAdmin() {
                       const buyer = item.buyer_name || item.buyer || '-';
                       const service = item.title || item.service_title || item.service || '-';
                       const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
-                      const paymentProof = item.payment_proof || item.paymentProof || '-';
                       const date = item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-';
                       const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : '-';
 
@@ -893,20 +842,6 @@ export function DashboardAdmin() {
                           <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
                           <td className="py-4 px-4 text-sm text-slate-600 capitalize">{method}</td>
                           <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
-                          <td className="py-4 px-4 text-sm">
-                            {paymentProof !== '-' ? (
-                              <a
-                                href={paymentProof.startsWith('http') || paymentProof.startsWith('blob:') ? paymentProof : `${API_ASSET_URL}${paymentProof.startsWith('/') ? '' : '/'}${paymentProof}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline inline-flex items-center gap-1"
-                              >
-                                Lihat Bukti
-                              </a>
-                            ) : (
-                              <span className="text-slate-400 italic">Belum ada</span>
-                            )}
-                          </td>
                           <td className="py-4 px-4 text-sm text-slate-600">{date}</td>
                           <td className="py-4 px-4">
                             <div className="flex flex-wrap gap-2">
@@ -915,14 +850,7 @@ export function DashboardAdmin() {
                                 onClick={() => handleVerifyPayment(item.id)}
                                 disabled={Boolean(paymentActionLoading[item.id])}
                               >
-                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Terima'}
-                              </button>
-                              <button
-                                className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                                onClick={() => handleRejectPayment(item.id)}
-                                disabled={Boolean(paymentActionLoading[item.id])}
-                              >
-                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Tolak'}
+                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Verifikasi'}
                               </button>
                             </div>
                           </td>
@@ -932,72 +860,6 @@ export function DashboardAdmin() {
                   )}
                 </tbody>
               </table>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-6 mt-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-800">Transaksi Selesai Menunggu Pencairan</h2>
-                <p className="text-sm text-slate-500">Pembayaran verified yang sudah selesai dan menunggu pencairan dana ke seller.</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Order ID</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Buyer</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Seller</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Status Order</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {releasePaymentsLoading ? (
-                      Array.from({ length: 5 }).map((_, idx) => (
-                        <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
-                          {Array.from({ length: 7 }).map((__, colIdx) => (
-                            <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
-                          ))}
-                        </tr>
-                      ))
-                    ) : releasePaymentsData.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada transaksi selesai yang menunggu pencairan.</td>
-                      </tr>
-                    ) : (
-                      releasePaymentsData.map((item: any) => {
-                        const orderId = item.order_id || item.orderId || item.id;
-                        const buyer = item.buyer_name || item.buyer || '-';
-                        const seller = item.seller_name || '-';
-                        const service = item.title || item.order_title || item.package_name || item.service_title || '-';
-                        const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : '-';
-                        const status = item.order_status || item.status || 'completed';
-
-                        return (
-                          <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
-                            <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
-                            <td className="py-4 px-4 text-sm text-slate-600">{buyer}</td>
-                            <td className="py-4 px-4 text-sm text-slate-600">{seller}</td>
-                            <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
-                            <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
-                            <td className="py-4 px-4 text-sm text-slate-600">{formatStatusLabel(status)}</td>
-                            <td className="py-4 px-4">
-                              <button
-                                className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                                onClick={() => handleReleasePayment(item.id)}
-                                disabled={Boolean(paymentActionLoading[item.id])}
-                              >
-                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Cairkan'}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
         );

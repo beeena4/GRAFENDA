@@ -67,7 +67,26 @@ const uploadChatFile = multer({
   fileFilter: fileFilter
 }).single('file');
 
-const uploadOrderResult = upload.single('result_image');
+// ===== ORDER RESULTS FILES: simpan ke folder /uploads/results =====
+const resultUploadDir = path.join(__dirname, '../uploads/results');
+if (!fs.existsSync(resultUploadDir)) {
+  fs.mkdirSync(resultUploadDir, { recursive: true });
+}
+
+const resultStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, resultUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'result-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadOrderResult = multer({
+  storage: resultStorage,
+  fileFilter: fileFilter
+}).single('result_image');
 
 module.exports = {
   upload,

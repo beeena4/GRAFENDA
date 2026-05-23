@@ -131,16 +131,20 @@ class PaymentController {
         // Notify buyer
         await NotificationService.notifyPaymentVerification(id, order.buyer_id, 'verified', payment.amount);
         
-        sendSuccess(res, 'Payment verified successfully', { invoice });
-      } else if (action === 'reject') {
-        await Payment.rejectPayment(id, adminId);
+        // =======================================================
+        // LANGSUNG RILIS / CAIRKAN DANA KE SELLER (1 AKSI SEKALIGUS)
+        // =======================================================
+        await Payment.releasePayment(id, adminId);
+        await User.updateBalance(payment.seller_user_id, payment.order_price);
         
-        const order = await Order.findById(payment.order_id);
+        await NotificationService.createAndSendNotification(payment.seller_user_id, {
+          title: 'Dana Escrow Dicairkan',
+          message: `Dana sebesar Rp${Number(payment.order_price).toLocaleString('id-ID')} telah dicairkan ke saldo Anda setelah verifikasi transaksi.`,
+          type: 'payment',
+          related_id: payment.id
+        });
         
-        // Notify buyer
-        await NotificationService.notifyPaymentVerification(id, order.buyer_id, 'rejected', payment.amount);
-        
-        sendSuccess(res, 'Payment rejected');
+        sendSuccess(res, 'Verifikasi berhasil dan dana langsung dicairkan ke penjual!', { invoice });
       } else {
         return sendError(res, 'Invalid action', 400);
       }
@@ -159,8 +163,8 @@ class PaymentController {
         return sendError(res, 'Payment not found', 404);
       }
 
-      if (payment.status !== 'verified') {
-        return sendError(res, 'Payment must be verified and completed before funds can be released', 400);
+      if (!['pending', 'verified'].includes(payment.status)) {
+        return sendError(res, 'Payment must be pending or verified and completed before funds can be released', 400);
       }
 
       const order = await Order.findById(payment.order_id);
