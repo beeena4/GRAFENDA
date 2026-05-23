@@ -5,6 +5,7 @@ const User = require('../models/User');
 const NotificationService = require('../services/NotificationService');
 const PDFGenerator = require('../utils/pdfGenerator');
 const { sendSuccess, sendError, getPaginationData } = require('../utils/helpers');
+const pool = require('../config/database');
 
 class PaymentController {
   // Upload payment proof
@@ -111,44 +112,94 @@ class PaymentController {
 
   // Verify payment (admin only)
   static async verifyPayment(req, res) {
+    let connection;
     try {
       const { id } = req.params;
       const { action } = req.body; // 'verify' or 'reject'
       const adminId = req.user.id;
 
-      const payment = await Payment.findById(id);
-      if (!payment) {
-        return sendError(res, 'Payment not found', 404);
-      }
-
       if (action === 'verify') {
-        await Payment.verifyPayment(id, adminId);
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
 
-        // Generate invoice
-        const order = await Order.findById(payment.order_id);
-        const invoice = await PDFGenerator.generateInvoice(order, payment);
+        // 1. Cari Data Order & Payment (menggunakan JOIN untuk mengambil harga dan ID seller)
+        const [paymentRows] = await connection.query(`
+          SELECT p.*, o.price, o.buyer_id, o.seller_id, o.title, sp.user_id AS seller_user_id
+          FROM payments p
+          JOIN orders o ON p.order_id = o.id
+          LEFT JOIN seller_profiles sp ON o.seller_id = sp.id
+          WHERE p.id = ? FOR UPDATE
+        `, [id]);
+
+        if (paymentRows.length === 0) {
+          await connection.rollback();
+          connection.release();
+          return sendError(res, 'Payment not found', 404);
+        }
+
+        const paymentInfo = paymentRows[0];
+        const sellerUserId = paymentInfo.seller_user_id || paymentInfo.seller_id;
+        const orderPrice = paymentInfo.price;
+        const orderId = paymentInfo.order_id;
+
+        // 2. Update Status Pembayaran menjadi verified / released
+        await connection.query(`
+          UPDATE payments 
+          SET status = 'verified', verified_by = ?, verified_at = NOW(),
+              released_by = ?, released_at = NOW()
+          WHERE id = ?
+        `, [adminId, adminId, id]);
+
+        // 3. Update Saldo Seller
+        await connection.query(`
+          UPDATE users 
+          SET balance = balance + ? 
+          WHERE id = ?
+        `, [orderPrice, sellerUserId]);
+
+        // 4. Update Status Order (Opsional: diatur ke 'paid' agar freelancer bisa mulai memproses pekerjaan)
+        await connection.query(`
+          UPDATE orders 
+          SET status = 'paid' 
+          WHERE id = ? AND status = 'pending'
+        `, [orderId]);
+
+        await connection.commit();
+        connection.release();
+
+        // -- Post-Transaction Logic (Berjalan setelah commit ke DB selesai) --
+        const order = await Order.findById(orderId);
+        const payment = await Payment.findById(id);
         
-        // Notify buyer
-        await NotificationService.notifyPaymentVerification(id, order.buyer_id, 'verified', payment.amount);
+        let invoice = null;
+        try {
+          invoice = await PDFGenerator.generateInvoice(order, payment);
+        } catch (err) {
+          console.error("Gagal generate invoice:", err.message);
+        }
         
-        // =======================================================
-        // LANGSUNG RILIS / CAIRKAN DANA KE SELLER (1 AKSI SEKALIGUS)
-        // =======================================================
-        await Payment.releasePayment(id, adminId);
-        await User.updateBalance(payment.seller_user_id, payment.order_price);
+        await NotificationService.notifyPaymentVerification(id, order.buyer_id, 'verified', paymentInfo.amount);
         
-        await NotificationService.createAndSendNotification(payment.seller_user_id, {
+        await NotificationService.createAndSendNotification(sellerUserId, {
           title: 'Dana Escrow Dicairkan',
-          message: `Dana sebesar Rp${Number(payment.order_price).toLocaleString('id-ID')} telah dicairkan ke saldo Anda setelah verifikasi transaksi.`,
+          message: `Dana sebesar Rp${Number(orderPrice).toLocaleString('id-ID')} telah dicairkan ke saldo Anda setelah verifikasi transaksi.`,
           type: 'payment',
-          related_id: payment.id
+          related_id: id
         });
-        
+
         sendSuccess(res, 'Verifikasi berhasil dan dana langsung dicairkan ke penjual!', { invoice });
       } else {
         return sendError(res, 'Invalid action', 400);
       }
     } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+          connection.release();
+        } catch (rbError) {
+          console.error('Error rolling back transaction:', rbError);
+        }
+      }
       sendError(res, error.message, 500);
     }
   }
