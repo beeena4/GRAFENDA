@@ -25,7 +25,10 @@ router.get('/:paymentId/receipt', PaymentController.generateReceipt);
 
 // Admin routes
 router.get('/admin/pending', authorizeRoles('admin'), PaymentController.getPendingPayments);
+router.get('/admin/release', authorizeRoles('admin'), PaymentController.getPendingReleasePayments);
+router.get('/admin/history', authorizeRoles('admin'), PaymentController.getAllTransactions);
 router.get('/admin/stats', authorizeRoles('admin'), PaymentController.getPaymentStats);
 router.put('/:id/verify', authorizeRoles('admin'), verifyPaymentValidation, PaymentController.verifyPayment);
+router.put('/:id/release', authorizeRoles('admin'), PaymentController.releasePayment);
 
 module.exports = router;

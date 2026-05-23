@@ -60,6 +60,12 @@ class AdminController {
           completion_rate: totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0
         },
         payments: paymentStats,
+        transactions: {
+          total: paymentStats.total_payments || 0,
+          completed: paymentStats.released_payments || 0,
+          pending: paymentStats.pending_transactions || 0,
+          revenue: paymentStats.total_revenue || 0
+        },
         revenue: revenueStats,
         recent_activity: {
           orders: recentOrders,

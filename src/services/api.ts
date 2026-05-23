@@ -185,8 +185,23 @@ export const adminAPI = {
     return response.data.data;
   },
 
+  getPendingReleasePayments: async (page = 1, limit = 10) => {
+    const response = await api.get(`/payments/admin/release?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
+  getTransactionHistory: async (page = 1, limit = 10) => {
+    const response = await api.get(`/payments/admin/history?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
   verifyPayment: async (paymentId: number, action: 'verify' | 'reject') => {
     const response = await api.put(`/payments/${paymentId}/verify`, { action });
+    return response.data.data;
+  },
+
+  releasePayment: async (paymentId: number) => {
+    const response = await api.put(`/payments/${paymentId}/release`);
     return response.data.data;
   },
 };

@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const Payment = require('../models/Payment');
 const Order = require('../models/Order');
+const User = require('../models/User');
 const NotificationService = require('../services/NotificationService');
 const PDFGenerator = require('../utils/pdfGenerator');
 const { sendSuccess, sendError, getPaginationData } = require('../utils/helpers');
@@ -63,8 +64,11 @@ class PaymentController {
         }
       }
 
-      // Order status remains pending until verified by admin
-      // await Order.updateStatus(order_id, 'paid');
+      // Move order into paid status once buyer has uploaded payment proof.
+      // The payment remains in escrow until admin verifies/release after completion.
+      if (order.status === 'pending') {
+        await Order.updateStatus(order_id, 'paid');
+      }
 
       // Notify admin for verification
       // In a real app, you'd notify admins here
@@ -119,10 +123,7 @@ class PaymentController {
 
       if (action === 'verify') {
         await Payment.verifyPayment(id, adminId);
-        
-        // Update order status to paid so seller can process it
-        await Order.updateStatus(payment.order_id, 'paid');
-        
+
         // Generate invoice
         const order = await Order.findById(payment.order_id);
         const invoice = await PDFGenerator.generateInvoice(order, payment);
@@ -133,9 +134,6 @@ class PaymentController {
         sendSuccess(res, 'Payment verified successfully', { invoice });
       } else if (action === 'reject') {
         await Payment.rejectPayment(id, adminId);
-        
-        // Update order status back to pending
-        await Order.updateStatus(payment.order_id, 'pending');
         
         const order = await Order.findById(payment.order_id);
         
@@ -151,7 +149,77 @@ class PaymentController {
     }
   }
 
+  static async releasePayment(req, res) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user.id;
+
+      const payment = await Payment.findById(id);
+      if (!payment) {
+        return sendError(res, 'Payment not found', 404);
+      }
+
+      if (payment.status !== 'verified') {
+        return sendError(res, 'Payment must be verified and completed before funds can be released', 400);
+      }
+
+      const order = await Order.findById(payment.order_id);
+      if (!order) {
+        return sendError(res, 'Order not found', 404);
+      }
+
+      if (order.status !== 'completed') {
+        return sendError(res, 'Order belum selesai. Transfer dana hanya boleh dilakukan setelah seller mengunggah hasil.', 400);
+      }
+
+      await Payment.releasePayment(id, adminId);
+      await User.updateBalance(payment.seller_user_id, payment.order_price);
+
+      await NotificationService.createAndSendNotification(
+        payment.seller_user_id,
+        {
+          title: 'Dana Escrow Dicairkan',
+          message: `Dana sebesar Rp${Number(payment.order_price).toLocaleString('id-ID')} telah dicairkan ke saldo Anda setelah verifikasi transaksi.`,
+          type: 'payment',
+          related_id: payment.id
+        }
+      );
+
+      await NotificationService.createAndSendNotification(
+        order.buyer_id,
+        {
+          title: 'Transaksi Diselesaikan',
+          message: `Transaksi untuk order "${order.title}" telah diverifikasi dan dana telah dicairkan ke seller.`,
+          type: 'payment',
+          related_id: payment.id
+        }
+      );
+
+      sendSuccess(res, 'Dana berhasil dicairkan ke seller');
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
   // Get pending payments (admin only)
+  static async getPendingReleasePayments(req, res) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+
+      const result = await Payment.getPendingReleasePayments(page, limit);
+
+      const response = {
+        payments: result.payments,
+        pagination: getPaginationData(page, limit, result.pagination.total)
+      };
+
+      sendSuccess(res, 'Pending release payments retrieved successfully', response);
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
   static async getPendingPayments(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -165,6 +233,24 @@ class PaymentController {
       };
 
       sendSuccess(res, 'Pending payments retrieved successfully', response);
+    } catch (error) {
+      sendError(res, error.message, 500);
+    }
+  }
+
+  static async getAllTransactions(req, res) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+
+      const result = await Payment.getAllTransactions(page, limit);
+
+      const response = {
+        transactions: result.transactions,
+        pagination: getPaginationData(page, limit, result.pagination.total)
+      };
+
+      sendSuccess(res, 'Transactions retrieved successfully', response);
     } catch (error) {
       sendError(res, error.message, 500);
     }
