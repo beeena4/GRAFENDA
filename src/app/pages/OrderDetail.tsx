@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
-import { ArrowLeft, MessageCircle, Star, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MessageCircle, Star, Clock, CheckCircle2, XCircle, Download } from "lucide-react";
 import { orderAPI } from "../../services/api";
 
 export function OrderDetail() {
@@ -44,7 +44,7 @@ export function OrderDetail() {
           lightColor: "bg-green-50",
           textColor: "text-green-600",
           icon: <CheckCircle2 className="w-10 h-10 text-green-200" />,
-          step: 3
+          step: 4
         };
       case "revision":
         return {
@@ -52,15 +52,39 @@ export function OrderDetail() {
           lightColor: "bg-yellow-50",
           textColor: "text-yellow-600",
           icon: <Star className="w-10 h-10 text-yellow-200" />,
-          step: 2
+          step: 3
         };
-      default:
+      case "process":
+        return {
+          color: "bg-blue-600",
+          lightColor: "bg-blue-50",
+          textColor: "text-blue-600",
+          icon: <Clock className="w-10 h-10 text-blue-200" />,
+          step: 3
+        };
+      case "paid":
         return {
           color: "bg-blue-600",
           lightColor: "bg-blue-50",
           textColor: "text-blue-600",
           icon: <Clock className="w-10 h-10 text-blue-200" />,
           step: 2
+        };
+      case "cancelled":
+        return {
+          color: "bg-red-500",
+          lightColor: "bg-red-50",
+          textColor: "text-red-600",
+          icon: <XCircle className="w-10 h-10 text-red-200" />,
+          step: 0
+        };
+      default:
+        return {
+          color: "bg-yellow-500",
+          lightColor: "bg-yellow-50",
+          textColor: "text-yellow-600",
+          icon: <Clock className="w-10 h-10 text-yellow-200" />,
+          step: 1
         };
     }
   };
@@ -76,6 +100,25 @@ export function OrderDetail() {
       revision: 'Revisi', completed: 'Selesai', cancelled: 'Dibatalkan',
     };
     return map[status] || status;
+  };
+
+  const handleDownloadResult = async (url: string, filename: string) => {
+    try {
+      const fullUrl = url.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}` : url;
+      const response = await fetch(fullUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'hasil-pesanan';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Gagal mengunduh file:', err);
+      window.open(url.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}` : url, '_blank');
+    }
   };
 
   return (
@@ -100,31 +143,33 @@ export function OrderDetail() {
 
           <div className="p-8 space-y-8">
             {/* Progress Step */}
-            <div className="relative flex justify-between">
-              {[
-                { label: "Verifikasi", step: 1 },
-                { label: "Dibayar", step: 2 },
-                { label: "Proses", step: 3 },
-                { label: "Selesai", step: 4 },
-              ].map((item, index) => (
-                <div key={index} className="flex flex-col items-center z-10 w-16">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                    config.step >= item.step ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
-                  }`}>
-                    {item.step}
+            {order.status !== 'cancelled' && (
+              <div className="relative flex justify-between">
+                {[
+                  { label: "Verifikasi", step: 1 },
+                  { label: "Dibayar", step: 2 },
+                  { label: "Proses", step: 3 },
+                  { label: "Selesai", step: 4 },
+                ].map((item, index) => (
+                  <div key={index} className="flex flex-col items-center z-10 w-16">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                      config.step >= item.step ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {item.step}
+                    </div>
+                    <span className={`text-[10px] mt-2 font-semibold uppercase ${config.step >= item.step ? 'text-blue-600' : 'text-slate-400'}`}>
+                      {item.label}
+                    </span>
                   </div>
-                  <span className={`text-[10px] mt-2 font-semibold uppercase ${config.step >= item.step ? 'text-blue-600' : 'text-slate-400'}`}>
-                    {item.label}
-                  </span>
+                ))}
+                <div className="absolute top-4 left-10 right-10 h-0.5 bg-slate-100 -z-0">
+                  <div 
+                    className="h-full bg-blue-600 transition-all duration-700" 
+                    style={{ width: config.step === 1 ? '0%' : config.step === 2 ? '33.33%' : config.step === 3 ? '66.66%' : '100%' }}
+                  />
                 </div>
-              ))}
-              <div className="absolute top-4 left-10 right-10 h-0.5 bg-slate-100 -z-0">
-                <div 
-                  className="h-full bg-blue-600 transition-all duration-700" 
-                  style={{ width: config.step === 1 ? '0%' : config.step === 2 ? '33.33%' : config.step === 3 ? '66.66%' : '100%' }}
-                />
               </div>
-            </div>
+            )}
 
             {/* Rincian Info */}
             <div className="grid grid-cols-2 gap-6 pt-4">
@@ -151,6 +196,17 @@ export function OrderDetail() {
                   <MessageCircle className="w-5 h-5" />
                   <span>Chat Seller</span>
                 </button>
+
+                {/* Unduh Hasil */}
+                {order.status === "completed" && order.result_image && (
+                  <button 
+                    onClick={() => handleDownloadResult(order.result_image, `Hasil_Order_GRF-${order.id}`)}
+                    className="flex items-center justify-center space-x-2 w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition-all cursor-pointer active:scale-[0.98]"
+                  >
+                    <Download className="w-5 h-5" />
+                    <span>Unduh Hasil Pesanan</span>
+                  </button>
+                )}
 
                 {/* Beri Review */}
                 {order.status === "completed" && (

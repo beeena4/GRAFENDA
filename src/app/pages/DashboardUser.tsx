@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useState, useEffect } from "react";
-import { ShoppingCart, Clock, Package, MessageCircle } from "lucide-react";
+import { ShoppingCart, Clock, Package, MessageCircle, Download } from "lucide-react";
 import { dashboardAPI, chatAPI } from "../../services/api";
 
 export function DashboardUser() {
@@ -48,6 +48,24 @@ export function DashboardUser() {
     };
   }, []);
 
+  const handleDownloadResult = async (url: string, filename: string) => {
+    try {
+      const fullUrl = url.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}` : url;
+      const response = await fetch(fullUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'hasil-pesanan';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Gagal mengunduh file:', err);
+      window.open(url.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}` : url, '_blank');
+    }
+  };
 
 
 
@@ -149,7 +167,7 @@ export function DashboardUser() {
                   {recentOrders.map((order) => (
                     <tr key={order.id} className="border-b border-slate-100 hover:bg-blue-50 transition-colors duration-200">
                       <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(order.id).padStart(6, '0')}</td>
-                      <td className="py-4 px-4 text-sm text-slate-600">{order.title}</td>
+                      <td className="py-4 px-4 text-sm text-slate-600">{order.title || order.service_title || order.service || '-'}</td>
                       <td className="py-4 px-4 text-sm text-slate-600">{order.seller_name}</td>
                       <td className="py-4 px-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor(order.status)}`}>
@@ -161,9 +179,20 @@ export function DashboardUser() {
                         {new Date(order.created_at).toLocaleDateString('id-ID')}
                       </td>
                       <td className="py-4 px-4">
-                        <Link to={`/order-detail/${order.id}`} className="text-blue-600 hover:text-blue-700 text-sm font-bold">
-                          Detail
-                        </Link>
+                        <div className="flex items-center gap-3">
+                          <Link to={`/order-detail/${order.id}`} className="text-blue-600 hover:text-blue-700 text-sm font-bold">
+                            Detail
+                          </Link>
+                          {order.status === 'completed' && order.result_image && (
+                            <button
+                              onClick={() => handleDownloadResult(order.result_image, `Hasil_Order_GRF-${order.id}`)}
+                              className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm font-bold transition-colors"
+                              title="Unduh Hasil"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

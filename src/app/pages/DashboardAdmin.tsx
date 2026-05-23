@@ -97,7 +97,7 @@ export function DashboardAdmin() {
           name: user.full_name || user.email,
           email: user.email,
           joinDate: user.created_at ? new Date(user.created_at).toLocaleDateString('id-ID') : '-',
-          orders: '-',
+          orders: user.total_orders || 0,
           status: user.status === 'suspended' ? 'Suspended' : user.status === 'inactive' ? 'Tidak Aktif' : 'Aktif',
           isVerified: Boolean(user.is_verified),
           role: user.role,
@@ -111,9 +111,10 @@ export function DashboardAdmin() {
           name: seller.full_name || seller.email,
           email: seller.email,
           joinDate: seller.created_at ? new Date(seller.created_at).toLocaleDateString('id-ID') : '-',
-          services: '-',
-          orders: '-',
-          rating: '-',
+          services: seller.total_services || seller.total_jasa || 0,
+          orders: seller.total_orders || 0,
+          earnings: seller.total_revenue || seller.total_earnings || seller.total_pendapatan || 0,
+          rating: seller.rating || '-',
           status: seller.status === 'suspended' ? 'Suspended' : seller.status === 'inactive' ? 'Tidak Aktif' : 'Aktif',
           isVerified: Boolean(seller.is_verified),
           role: seller.role || 'seller',
@@ -185,15 +186,22 @@ export function DashboardAdmin() {
 
   useEffect(() => {
     let isMounted = true;
+    let isFetching = false;
+
     const loadData = async (showLoading = true) => {
-      if (!isMounted) return;
-      await Promise.all([
-        loadDashboardStats(showLoading),
-        loadUsersData(showLoading),
-        loadOrdersData(showLoading),
-        loadPaymentsData(showLoading),
-        loadTransactionsData(showLoading),
-      ]);
+      if (!isMounted || isFetching) return;
+      isFetching = true;
+      try {
+        await Promise.allSettled([
+          loadDashboardStats(showLoading),
+          loadUsersData(showLoading),
+          loadOrdersData(showLoading),
+          loadPaymentsData(showLoading),
+          loadTransactionsData(showLoading),
+        ]);
+      } finally {
+        isFetching = false;
+      }
     };
 
     loadData(true);
@@ -202,7 +210,7 @@ export function DashboardAdmin() {
       if (isMounted) {
         loadData(false);
       }
-    }, 5000);
+    }, 60000); // Ubah dari 5 detik menjadi 60 detik untuk mencegah spam dan overload server
 
     return () => {
       isMounted = false;
@@ -642,6 +650,7 @@ export function DashboardAdmin() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Bergabung</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Orders</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Pendapatan</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Rating</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Status</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
@@ -655,6 +664,7 @@ export function DashboardAdmin() {
                       <td className="py-4 px-4 text-sm text-slate-600">{seller.joinDate}</td>
                       <td className="py-4 px-4 text-sm text-slate-600">{seller.services}</td>
                       <td className="py-4 px-4 text-sm text-slate-600">{seller.orders}</td>
+                      <td className="py-4 px-4 text-sm font-semibold text-green-600">Rp {Number(seller.earnings).toLocaleString('id-ID')}</td>
                       <td className="py-4 px-4 text-sm text-slate-600 flex items-center">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
                         {seller.rating}
