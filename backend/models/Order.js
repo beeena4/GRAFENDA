@@ -31,20 +31,37 @@ class Order {
   static async findByUserId(userId, role = 'buyer', page = 1, limit = 10, status = null) {
     const offset = (page - 1) * limit;
     
-    let sql = `
-      SELECT o.*, 
-             ${role === 'buyer' ? 'u.full_name as seller_name, u.avatar as seller_avatar' : 'b.full_name as buyer_name, b.email as buyer_email, b.avatar as buyer_avatar'},
-             svc.title as service_title, sp.name as package_name, sp.package_type
-      FROM orders o
-      JOIN users b ON o.buyer_id = b.id
-      JOIN seller_profiles s ON o.seller_id = s.id
-      JOIN users u ON s.user_id = u.id
-      JOIN services svc ON o.service_id = svc.id
-      JOIN service_packages sp ON o.package_id = sp.id
-      WHERE o.${role}_id = ?
-    `;
-    
+    let sql;
     const params = [userId];
+
+    if (role === 'seller') {
+      sql = `
+        SELECT o.*, 
+               b.full_name as buyer_name, b.email as buyer_email, b.avatar as buyer_avatar,
+               u.full_name as seller_name, u.avatar as seller_avatar,
+               svc.title as service_title, spkg.name as package_name, spkg.package_type
+        FROM orders o
+        JOIN seller_profiles sp ON o.seller_id = sp.id
+        JOIN users u ON sp.user_id = u.id
+        JOIN users b ON o.buyer_id = b.id
+        JOIN services svc ON o.service_id = svc.id
+        JOIN service_packages spkg ON o.package_id = spkg.id
+        WHERE sp.user_id = ?
+      `;
+    } else {
+      sql = `
+        SELECT o.*, 
+               u.full_name as seller_name, u.avatar as seller_avatar,
+               svc.title as service_title, spkg.name as package_name, spkg.package_type
+        FROM orders o
+        JOIN seller_profiles sp ON o.seller_id = sp.id
+        JOIN users u ON sp.user_id = u.id
+        JOIN users b ON o.buyer_id = b.id
+        JOIN services svc ON o.service_id = svc.id
+        JOIN service_packages spkg ON o.package_id = spkg.id
+        WHERE o.buyer_id = ?
+      `;
+    }
     
     if (status) {
       sql += ` AND o.status = ?`;
@@ -57,11 +74,16 @@ class Order {
     const orders = await query(sql, params);
     
     // Get total count
-    let countSql = `SELECT COUNT(*) as total FROM orders WHERE ${role}_id = ?`;
+    let countSql;
     const countParams = [userId];
+    if (role === 'seller') {
+      countSql = `SELECT COUNT(*) as total FROM orders o JOIN seller_profiles sp ON o.seller_id = sp.id WHERE sp.user_id = ?`;
+    } else {
+      countSql = `SELECT COUNT(*) as total FROM orders WHERE buyer_id = ?`;
+    }
     
     if (status) {
-      countSql += ` AND status = ?`;
+      countSql += ` AND o.status = ?`;
       countParams.push(status);
     }
     
@@ -106,21 +128,40 @@ class Order {
   }
 
   static async getOrderStats(userId, role = 'buyer') {
-    const sql = `
-      SELECT 
-        COUNT(*) as total_orders,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
-        SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_orders,
-        SUM(CASE WHEN status = 'process' THEN 1 ELSE 0 END) as active_orders,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
-        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
-        SUM(CASE WHEN status IN ('paid', 'process', 'revision', 'completed') THEN price ELSE 0 END) as total_spent,
-        AVG(CASE WHEN status = 'completed' THEN price ELSE NULL END) as avg_order_value
-      FROM orders 
-      WHERE ${role}_id = ?
-    `;
+    let sql;
+    const params = [userId];
+    if (role === 'seller') {
+      sql = `
+        SELECT 
+          COUNT(*) as total_orders,
+          SUM(CASE WHEN o.status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
+          SUM(CASE WHEN o.status = 'paid' THEN 1 ELSE 0 END) as paid_orders,
+          SUM(CASE WHEN o.status = 'process' THEN 1 ELSE 0 END) as active_orders,
+          SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
+          SUM(CASE WHEN o.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
+          SUM(CASE WHEN o.status IN ('paid', 'process', 'revision', 'completed') THEN o.price ELSE 0 END) as total_spent,
+          AVG(CASE WHEN o.status = 'completed' THEN o.price ELSE NULL END) as avg_order_value
+        FROM orders o
+        JOIN seller_profiles sp ON o.seller_id = sp.id
+        WHERE sp.user_id = ?
+      `;
+    } else {
+      sql = `
+        SELECT 
+          COUNT(*) as total_orders,
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
+          SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_orders,
+          SUM(CASE WHEN status = 'process' THEN 1 ELSE 0 END) as active_orders,
+          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
+          SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
+          SUM(CASE WHEN status IN ('paid', 'process', 'revision', 'completed') THEN price ELSE 0 END) as total_spent,
+          AVG(CASE WHEN status = 'completed' THEN price ELSE NULL END) as avg_order_value
+        FROM orders 
+        WHERE buyer_id = ?
+      `;
+    }
     
-    const stats = await query(sql, [userId]);
+    const stats = await query(sql, params);
     return stats[0];
   }
 

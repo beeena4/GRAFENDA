@@ -24,6 +24,7 @@ export function NewDashboardSeller() {
     rating: 0,
   });
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [sellerOrders, setSellerOrders] = useState<any[]>([]);
   const [myServices, setMyServices] = useState<any[]>([]);
   const [earnings, setEarnings] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -41,12 +42,16 @@ export function NewDashboardSeller() {
 
     const fetchData = async () => {
       try {
-        const data = await dashboardAPI.getSellerDashboard();
+        const [dashboardData, ordersData] = await Promise.all([
+          dashboardAPI.getSellerDashboard(),
+          orderAPI.getUserOrders(1, 100)
+        ]);
         if (!isMounted) return;
-        setStats(data.stats || {});
-        setActiveOrders((data.active_orders || []).filter((o: any) => o.status !== 'pending'));
-        setMyServices(data.services || []);
-        setEarnings(data.earnings || []);
+        setStats(dashboardData.stats || {});
+        setActiveOrders((dashboardData.active_orders || []).filter((o: any) => o.status !== 'pending'));
+        setSellerOrders(ordersData.orders || []);
+        setMyServices(dashboardData.services || []);
+        setEarnings(dashboardData.earnings || []);
       } catch (err) {
         console.error('Failed to fetch dashboard:', err);
       } finally {
@@ -68,9 +73,9 @@ export function NewDashboardSeller() {
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
-      pending: 'Menunggu Verifikasi',
+      pending: 'Menunggu Konfirmasi',
       paid: 'Sudah Dibayar',
-      process: 'Dalam Proses',
+      process: 'Dalam Pengerjaan',
       revision: 'Revisi',
       completed: 'Selesai',
       cancelled: 'Dibatalkan',
@@ -129,11 +134,15 @@ export function NewDashboardSeller() {
   const refreshDashboard = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const data = await dashboardAPI.getSellerDashboard();
-      setStats(data.stats || {});
-      setActiveOrders((data.active_orders || []).filter((o: any) => o.status !== 'pending'));
-      setMyServices(data.services || []);
-      setEarnings(data.earnings || []);
+      const [dashboardData, ordersData] = await Promise.all([
+        dashboardAPI.getSellerDashboard(),
+        orderAPI.getUserOrders(1, 100)
+      ]);
+      setStats(dashboardData.stats || {});
+      setActiveOrders((dashboardData.active_orders || []).filter((o: any) => o.status !== 'pending'));
+      setSellerOrders(ordersData.orders || []);
+      setMyServices(dashboardData.services || []);
+      setEarnings(dashboardData.earnings || []);
     } catch (err) {
       console.error('Failed to refresh dashboard:', err);
     } finally {
@@ -210,10 +219,10 @@ export function NewDashboardSeller() {
 
   const renderOrders = () => (
     <div className="space-y-5">
-      {activeOrders.length === 0 ? (
-        <p className="text-slate-400 text-center py-12">Belum ada order aktif</p>
+      {sellerOrders.length === 0 ? (
+        <p className="text-slate-400 text-center py-12">Belum ada order.</p>
       ) : (
-        activeOrders.map((order) => (
+        sellerOrders.map((order) => (
           <div key={order.id} className="bg-white rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
             <div className="flex items-start justify-between mb-5">
                 <div>
@@ -237,7 +246,7 @@ export function NewDashboardSeller() {
             <div className="flex items-center justify-between border-t border-slate-100 pt-4">
               <h4 className="font-bold text-slate-800">{formatRupiah(order.price)}</h4>
               <div className="flex items-center gap-2">
-                {order.status === 'paid' && (
+                {(order.status === 'pending' || order.status === 'paid') && (
                   <>
                     <button
                       onClick={() => handleAcceptOrder(order.id)}
@@ -255,12 +264,20 @@ export function NewDashboardSeller() {
                     </button>
                   </>
                 )}
-                {['process', 'revision'].includes(order.status) && (
+                {order.status === 'process' && (
                   <button
                     onClick={() => handleUploadResult(order.id)}
                     className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-xl transition"
                   >
-                    <Upload className="w-4 h-4" /><span>Kirim Hasil</span>
+                    <Upload className="w-4 h-4" /><span>Upload Hasil</span>
+                  </button>
+                )}
+                {order.status === 'revision' && (
+                  <button
+                    onClick={() => handleUploadResult(order.id)}
+                    className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-xl transition"
+                  >
+                    <Upload className="w-4 h-4" /><span>Kirim Revisi</span>
                   </button>
                 )}
                 {order.status === 'completed' && (

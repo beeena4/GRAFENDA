@@ -168,13 +168,16 @@ const initDatabase = async () => {
         amount DECIMAL(10,2) NOT NULL,
         payment_method ENUM('bank_transfer', 'virtual_account', 'e_wallet') NOT NULL,
         payment_proof VARCHAR(255),
-        status ENUM('pending', 'verified', 'rejected') DEFAULT 'pending',
+        status ENUM('pending', 'verified', 'rejected', 'released') DEFAULT 'pending',
         verified_by INT,
         verified_at TIMESTAMP NULL,
+        released_by INT,
+        released_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
         FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (released_by) REFERENCES users(id) ON DELETE SET NULL,
         INDEX idx_payments_order_id (order_id)
       )
     `);

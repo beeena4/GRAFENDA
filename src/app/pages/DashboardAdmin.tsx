@@ -37,6 +37,10 @@ export function DashboardAdmin() {
   const [paymentActionLoading, setPaymentActionLoading] = useState<Record<number, boolean>>({});
   const [ordersData, setOrdersData] = useState<any[]>([]);
   const [paymentsData, setPaymentsData] = useState<any[]>([]);
+  const [transactionsData, setTransactionsData] = useState<any[]>([]);
+  const [releasePaymentsData, setReleasePaymentsData] = useState<any[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
+  const [releasePaymentsLoading, setReleasePaymentsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -152,6 +156,34 @@ export function DashboardAdmin() {
     }
   };
 
+  const loadTransactionsData = async (showLoading = true) => {
+    if (showLoading) setTransactionsLoading(true);
+    setError(null);
+    try {
+      const transactionsResult = await adminAPI.getTransactionHistory(1, 100);
+      setTransactionsData(transactionsResult.transactions);
+    } catch (err: any) {
+      setError(err?.message || 'Gagal memuat riwayat transaksi');
+      setTransactionsData([]);
+    } finally {
+      if (showLoading) setTransactionsLoading(false);
+    }
+  };
+
+  const loadReleasePaymentsData = async (showLoading = true) => {
+    if (showLoading) setReleasePaymentsLoading(true);
+    setError(null);
+    try {
+      const releaseResult = await adminAPI.getPendingReleasePayments(1, 100);
+      setReleasePaymentsData(releaseResult.payments);
+    } catch (err: any) {
+      setError(err?.message || 'Gagal memuat data release pembayaran');
+      setReleasePaymentsData([]);
+    } finally {
+      if (showLoading) setReleasePaymentsLoading(false);
+    }
+  };
+
   // Load admin profile avatar
   useEffect(() => {
     const loadAdminProfile = async () => {
@@ -174,6 +206,8 @@ export function DashboardAdmin() {
         loadUsersData(showLoading),
         loadOrdersData(showLoading),
         loadPaymentsData(showLoading),
+        loadTransactionsData(showLoading),
+        loadReleasePaymentsData(showLoading),
       ]);
     };
 
@@ -231,6 +265,8 @@ export function DashboardAdmin() {
       await adminAPI.verifyPayment(paymentId, 'verify');
       await loadPaymentsData();
       await loadDashboardStats();
+      await loadOrdersData(false);
+      await loadReleasePaymentsData(false);
     } catch (err: any) {
       setError(err?.message || 'Gagal memverifikasi pembayaran');
     } finally {
@@ -245,8 +281,26 @@ export function DashboardAdmin() {
       await adminAPI.verifyPayment(paymentId, 'reject');
       await loadPaymentsData();
       await loadDashboardStats();
+      await loadOrdersData(false);
+      await loadReleasePaymentsData(false);
     } catch (err: any) {
       setError(err?.message || 'Gagal menolak pembayaran');
+    } finally {
+      setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: false }));
+    }
+  };
+
+  const handleReleasePayment = async (paymentId: number) => {
+    setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
+    setError(null);
+    try {
+      await adminAPI.releasePayment(paymentId);
+      await loadReleasePaymentsData();
+      await loadPaymentsData(false);
+      await loadDashboardStats(false);
+      await loadOrdersData(false);
+    } catch (err: any) {
+      setError(err?.message || 'Gagal mencairkan dana');
     } finally {
       setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: false }));
     }
@@ -347,7 +401,13 @@ export function DashboardAdmin() {
   ];
 
   const pendingVerifications = paymentsData;
-  const recentTransactions = ordersData;
+  const recentTransactions = transactionsData;
+  const transactionStats = dashboardStats?.transactions || {
+    total: dashboardStats?.orders?.total || 0,
+    completed: dashboardStats?.orders?.completed || 0,
+    pending: dashboardStats?.orders?.pending || 0,
+    revenue: dashboardStats?.revenue?.total_revenue || 0,
+  };
 
   const handleLogout = () => {
     navigate('/');
@@ -385,7 +445,7 @@ export function DashboardAdmin() {
                     {pendingVerifications.map((item: any) => {
                       const orderId = item.orderId || item.order_id;
                       const buyer = item.buyer || item.buyer_name || '-';
-                      const service = item.service_title || item.service || '-';
+                      const service = item.title || item.service_title || item.service || '-';
                       const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
                       const date = item.date || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '');
                       const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : item.amount;
@@ -442,12 +502,12 @@ export function DashboardAdmin() {
                   </thead>
                   <tbody>
                     {recentTransactions.map((txn: any) => {
-                      const orderId = txn.orderId || txn.id;
-                      const buyer = txn.buyer || txn.buyer_name;
-                      const seller = txn.seller || txn.seller_name;
-                      const service = txn.service || txn.service_title || txn.package_name;
-                      const status = txn.status || txn.order_status || txn.status;
-                      const date = txn.date || (txn.created_at ? new Date(txn.created_at).toLocaleDateString('id-ID') : '');
+                      const orderId = txn.orderId || txn.order_id || txn.id;
+                      const buyer = txn.buyer || txn.buyer_name || '-';
+                      const seller = txn.seller || txn.seller_name || '-';
+                      const service = txn.title || txn.service || txn.service_title || txn.package_name || '-';
+                      const status = txn.status || txn.order_status || '-';
+                      const date = txn.date || (txn.created_at ? new Date(txn.created_at).toLocaleDateString('id-ID') : '-');
                       const amountValue = txn.amount || txn.price || 0;
                       const amount = typeof amountValue === 'number' ? `Rp ${amountValue.toLocaleString('id-ID')}` : amountValue;
 
@@ -679,31 +739,43 @@ export function DashboardAdmin() {
           <div className="space-y-8">
             <div className="grid md:grid-cols-4 gap-6">
               <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                <p className="text-sm text-slate-500 mb-2 font-medium">Total Transaksi</p>
-                <p className="text-3xl font-bold text-slate-800 tracking-tight">{dashboardStats?.orders?.total?.toLocaleString() ?? '—'}</p>
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-sm text-slate-500 font-medium">Total Transaksi</p>
+                  <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">+12%</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-800 tracking-tight">{transactionStats.total?.toLocaleString() ?? '—'}</p>
                 <p className="text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block bg-slate-50 text-slate-500">Dari semua transaksi</p>
               </div>
               <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                <p className="text-sm text-slate-500 mb-2 font-medium">Transaksi Selesai</p>
-                <p className="text-3xl font-bold text-slate-800 tracking-tight">{dashboardStats?.orders?.completed?.toLocaleString() ?? '—'}</p>
-                <p className="text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block bg-slate-50 text-slate-500">Jumlah selesai</p>
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-sm text-slate-500 font-medium">Volume</p>
+                  <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">+8%</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-800 tracking-tight">Rp {(transactionStats.revenue || 0).toLocaleString('id-ID')}</p>
+                <p className="text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block bg-slate-50 text-slate-500">Total nilai transaksi</p>
               </div>
               <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                <p className="text-sm text-slate-500 mb-2 font-medium">Transaksi Pending</p>
-                <p className="text-3xl font-bold text-slate-800 tracking-tight">{dashboardStats?.orders?.pending?.toLocaleString() ?? '—'}</p>
-                <p className="text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block bg-slate-50 text-slate-500">Menunggu verifikasi</p>
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-sm text-slate-500 font-medium">Fee Platform</p>
+                  <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">+15%</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-800 tracking-tight">Rp {((transactionStats.revenue || 0) * 0.1).toLocaleString('id-ID')}</p>
+                <p className="text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block bg-slate-50 text-slate-500">10% dari volume</p>
               </div>
               <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                <p className="text-sm text-slate-500 mb-2 font-medium">Pendapatan</p>
-                <p className="text-3xl font-bold text-slate-800 tracking-tight">Rp {Number(dashboardStats?.revenue?.total_revenue || 0).toLocaleString('id-ID')}</p>
-                <p className="text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block bg-slate-50 text-slate-500">Dari transaksi selesai</p>
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-sm text-slate-500 font-medium">Rata-rata</p>
+                  <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">+5%</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-800 tracking-tight">Rp {transactionStats.total ? Math.round((transactionStats.revenue || 0) / transactionStats.total).toLocaleString('id-ID') : '0'}</p>
+                <p className="text-xs mt-3 font-bold px-2 py-1 rounded-full inline-block bg-slate-50 text-slate-500">Nilai per transaksi</p>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-slate-800">Riwayat Transaksi</h3>
-                <div className="text-sm text-slate-500">Menampilkan {ordersData.length} transaksi terbaru</div>
+                <div className="text-sm text-slate-500">Menampilkan {transactionsData.length} transaksi terbaru</div>
               </div>
 
               <div className="overflow-x-auto">
@@ -715,32 +787,34 @@ export function DashboardAdmin() {
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Seller</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Fee</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Status</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {ordersLoading ? (
+                    {transactionsLoading ? (
                       Array.from({ length: 5 }).map((_, idx) => (
                         <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
-                          {Array.from({ length: 7 }).map((__, colIdx) => (
+                          {Array.from({ length: 8 }).map((__, colIdx) => (
                             <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
                           ))}
                         </tr>
                       ))
-                    ) : ordersData.length === 0 ? (
+                    ) : transactionsData.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada transaksi ditemukan.</td>
+                        <td colSpan={8} className="py-12 text-center text-slate-500">Tidak ada transaksi ditemukan.</td>
                       </tr>
                     ) : (
-                      ordersData.map((txn: any) => {
-                        const orderId = txn.id || txn.order_id;
+                      transactionsData.map((txn: any) => {
+                        const orderId = txn.order_id || txn.id;
                         const buyer = txn.buyer_name || txn.buyer || '-';
                         const seller = txn.seller_name || txn.seller || '-';
-                        const service = txn.service_title || txn.service || txn.package_name || '-';
+                        const service = txn.title || txn.order_title || txn.service_title || txn.service || '-';
                         const status = txn.status || txn.order_status || '-';
                         const date = txn.created_at ? new Date(txn.created_at).toLocaleDateString('id-ID') : '-';
-                        const amountValue = txn.price || txn.amount || 0;
+                        const amountValue = txn.amount || txn.order_price || 0;
+                        const feeValue = txn.fee || amountValue * 0.1;
                         return (
                           <tr key={txn.id} className="border-b border-slate-100 hover:bg-slate-50">
                             <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
@@ -748,6 +822,7 @@ export function DashboardAdmin() {
                             <td className="py-4 px-4 text-sm text-slate-600">{seller}</td>
                             <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
                             <td className="py-4 px-4 text-sm font-semibold text-slate-800">Rp {Number(amountValue).toLocaleString('id-ID')}</td>
+                            <td className="py-4 px-4 text-sm font-semibold text-green-600">Rp {Number(feeValue).toLocaleString('id-ID')}</td>
                             <td className="py-4 px-4">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                                 status.toLowerCase() === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
@@ -805,7 +880,7 @@ export function DashboardAdmin() {
                     paymentsData.map((item: any) => {
                       const orderId = item.order_id || item.orderId || item.id;
                       const buyer = item.buyer_name || item.buyer || '-';
-                      const service = item.service_title || item.service || '-';
+                      const service = item.title || item.service_title || item.service || '-';
                       const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
                       const paymentProof = item.payment_proof || item.paymentProof || '-';
                       const date = item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-';
@@ -857,6 +932,72 @@ export function DashboardAdmin() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm p-6 mt-8">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-800">Transaksi Selesai Menunggu Pencairan</h2>
+                <p className="text-sm text-slate-500">Pembayaran verified yang sudah selesai dan menunggu pencairan dana ke seller.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Order ID</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Buyer</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Seller</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Status Order</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {releasePaymentsLoading ? (
+                      Array.from({ length: 5 }).map((_, idx) => (
+                        <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
+                          {Array.from({ length: 7 }).map((__, colIdx) => (
+                            <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : releasePaymentsData.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada transaksi selesai yang menunggu pencairan.</td>
+                      </tr>
+                    ) : (
+                      releasePaymentsData.map((item: any) => {
+                        const orderId = item.order_id || item.orderId || item.id;
+                        const buyer = item.buyer_name || item.buyer || '-';
+                        const seller = item.seller_name || '-';
+                        const service = item.title || item.order_title || item.package_name || item.service_title || '-';
+                        const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : '-';
+                        const status = item.order_status || item.status || 'completed';
+
+                        return (
+                          <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{buyer}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{seller}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
+                            <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{formatStatusLabel(status)}</td>
+                            <td className="py-4 px-4">
+                              <button
+                                className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                onClick={() => handleReleasePayment(item.id)}
+                                disabled={Boolean(paymentActionLoading[item.id])}
+                              >
+                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Cairkan'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );

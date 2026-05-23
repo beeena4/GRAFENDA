@@ -12,11 +12,14 @@ class Payment {
 
   static async findById(id) {
     const sql = `
-      SELECT p.*, o.title as order_title, o.price as order_price, 
-             b.full_name as buyer_name, b.email as buyer_email
+      SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status,
+             b.full_name as buyer_name, b.email as buyer_email,
+             sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email
       FROM payments p
       JOIN orders o ON p.order_id = o.id
       JOIN users b ON o.buyer_id = b.id
+      JOIN seller_profiles sp ON o.seller_id = sp.id
+      JOIN users u ON sp.user_id = u.id
       WHERE p.id = ?
     `;
     const payments = await query(sql, [id]);
@@ -26,6 +29,49 @@ class Payment {
   static async findByOrderId(orderId) {
     const sql = `SELECT * FROM payments WHERE order_id = ? ORDER BY created_at DESC`;
     return await query(sql, [orderId]);
+  }
+
+  static async getPendingReleasePayments(page = 1, limit = 10) {
+    const offset = (page - 1) * limit;
+
+    const sql = `
+      SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status,
+             b.full_name as buyer_name, b.email as buyer_email,
+             sp.user_id as seller_user_id, u.full_name as seller_name
+      FROM payments p
+      JOIN orders o ON p.order_id = o.id
+      JOIN users b ON o.buyer_id = b.id
+      JOIN seller_profiles sp ON o.seller_id = sp.id
+      JOIN users u ON sp.user_id = u.id
+      WHERE p.status = 'verified' AND o.status = 'completed' AND p.released_at IS NULL
+      ORDER BY p.verified_at ASC
+      LIMIT ? OFFSET ?
+    `;
+    const payments = await query(sql, [limit, offset]);
+
+    const countSql = `
+      SELECT COUNT(*) as total
+      FROM payments p
+      JOIN orders o ON p.order_id = o.id
+      WHERE p.status = 'verified' AND o.status = 'completed' AND p.released_at IS NULL
+    `;
+    const countResult = await query(countSql);
+    const total = countResult[0].total;
+
+    return {
+      payments,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  static async releasePayment(id, releasedBy) {
+    const sql = `UPDATE payments SET status = 'released', released_by = ?, released_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    await query(sql, [releasedBy, id]);
   }
 
   static async updatePaymentProof(id, paymentProof) {
@@ -62,15 +108,15 @@ class Payment {
     const offset = (page - 1) * limit;
     
     const sql = `
-      SELECT p.*, o.title as order_title, o.price as order_price,
+      SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status,
              b.full_name as buyer_name, b.email as buyer_email,
-             s.user_id as seller_user_id, u.full_name as seller_name
+             sp.user_id as seller_user_id, u.full_name as seller_name
       FROM payments p
       JOIN orders o ON p.order_id = o.id
       JOIN users b ON o.buyer_id = b.id
       JOIN seller_profiles sp ON o.seller_id = sp.id
       JOIN users u ON sp.user_id = u.id
-      WHERE p.status = 'pending'
+      WHERE p.status = 'pending' AND o.status = 'completed'
       ORDER BY p.created_at ASC
       LIMIT ? OFFSET ?
     `;
@@ -78,7 +124,12 @@ class Payment {
     const payments = await query(sql, [limit, offset]);
     
     // Get total count
-    const countSql = `SELECT COUNT(*) as total FROM payments WHERE status = 'pending'`;
+    const countSql = `
+      SELECT COUNT(*) as total
+      FROM payments p
+      JOIN orders o ON p.order_id = o.id
+      WHERE p.status = 'pending' AND o.status = 'completed'
+    `;
     const countResult = await query(countSql);
     const total = countResult[0].total;
     
@@ -99,14 +150,49 @@ class Payment {
         COUNT(*) as total_payments,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_payments,
         SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as verified_payments,
+        SUM(CASE WHEN status = 'released' THEN 1 ELSE 0 END) as released_payments,
         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_payments,
-        SUM(CASE WHEN status = 'verified' THEN amount ELSE 0 END) as total_verified_amount,
-        AVG(CASE WHEN status = 'verified' THEN amount ELSE NULL END) as avg_payment_amount
+        SUM(CASE WHEN status IN ('pending', 'verified') THEN 1 ELSE 0 END) as pending_transactions,
+        SUM(CASE WHEN status = 'released' THEN amount ELSE 0 END) as total_revenue,
+        AVG(CASE WHEN status = 'released' THEN amount ELSE NULL END) as avg_payment_amount
       FROM payments
     `;
     
     const stats = await query(sql);
     return stats[0];
+  }
+
+  static async getAllTransactions(page = 1, limit = 10) {
+    const offset = (page - 1) * limit;
+
+    const sql = `
+      SELECT p.*, o.title as order_title, o.price as order_price, o.status as order_status, o.created_at as order_created_at,
+             b.full_name as buyer_name, b.email as buyer_email,
+             sp.user_id as seller_user_id, u.full_name as seller_name, u.email as seller_email
+      FROM payments p
+      JOIN orders o ON p.order_id = o.id
+      JOIN users b ON o.buyer_id = b.id
+      JOIN seller_profiles sp ON o.seller_id = sp.id
+      JOIN users u ON sp.user_id = u.id
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const transactions = await query(sql, [limit, offset]);
+
+    const countSql = `SELECT COUNT(*) as total FROM payments`;
+    const countResult = await query(countSql);
+    const total = countResult[0].total;
+
+    return {
+      transactions,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    };
   }
 }
 
