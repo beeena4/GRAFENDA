@@ -243,81 +243,110 @@ export function ServiceDetail() {
               <h2 className="text-2xl font-bold text-slate-800 mb-6">Pilih Paket</h2>
 
               {service.packages?.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-3 mb-6">
-                  {service.packages.map((pkg: any) => (
-                    <button
-                      key={pkg.id}
-                      onClick={() => setSelectedPackageId(pkg.id)}
-                      className={`border rounded-2xl p-5 text-left transition-all duration-200 cursor-pointer ${selectedPackageId === pkg.id ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50'}`}
-                    >
+                <>
+                  {/* Tab nama + harga saja */}
+                  <div className="grid gap-3 md:grid-cols-3 mb-6">
+                    {service.packages.map((pkg: any) => (
+                      <button
+                        key={pkg.id}
+                        onClick={() => setSelectedPackageId(pkg.id)}
+                        className={`border rounded-2xl p-4 text-center transition-all duration-200 cursor-pointer ${
+                          selectedPackageId === pkg.id
+                            ? 'border-blue-600 bg-blue-50 shadow-sm'
+                            : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50'
+                        }`}
+                      >
+                        <p className="font-semibold text-slate-800 mb-1">
+                          {pkg.name || pkg.package_type || 'Paket'}
+                        </p>
+                        <p className="text-lg font-bold text-blue-600">
+                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pkg.price ?? 0)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Detail paket yang dipilih */}
+                  {selectedPackage && (
+                    <div className="border border-slate-200 rounded-xl p-6 mb-0">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <p className="font-semibold text-slate-800">{pkg.name || pkg.package_type || 'Paket'}</p>
-                          <p className="text-sm text-slate-500">{pkg.description || 'Detail paket'}</p>
+                          <h3 className="text-xl font-bold text-slate-800 mb-1">
+                            {selectedPackage.name || selectedPackage.package_type || 'Paket'}
+                          </h3>
+                          <p className="text-sm text-slate-500">{selectedPackage.description || ''}</p>
                         </div>
-                        <span className="text-lg font-bold text-blue-600">Rp {pkg.price?.toLocaleString('id-ID')}</span>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(selectedPackage.price ?? 0)}
+                        </p>
                       </div>
-                      <div className="text-slate-600 text-sm space-y-2">
-                        <p>{pkg.delivery_days ? `${pkg.delivery_days} hari kirim` : 'Waktu kirim tersedia'}</p>
-                        <p>{pkg.revisions != null ? `${pkg.revisions} kali revisi` : 'Jumlah revisi tersedia'}</p>
-                        {pkg.features && (
-                          <p>{Array.isArray(pkg.features) ? pkg.features.join(', ') : pkg.features}</p>
+
+                      <div className="space-y-2 mb-6 text-sm text-slate-600">
+                        {selectedPackage.delivery_days && (
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 mr-2 text-green-500" />
+                            <span>{selectedPackage.delivery_days} hari pengiriman</span>
+                          </div>
                         )}
+                        {selectedPackage.revisions != null && (
+                          <div className="flex items-center">
+                            <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                            <span>{selectedPackage.revisions} kali revisi</span>
+                          </div>
+                        )}
+                        {selectedPackage.features && (
+                          Array.isArray(selectedPackage.features)
+                            ? selectedPackage.features.map((f: string, i: number) => (
+                                <div key={i} className="flex items-center">
+                                  <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                                  <span>{f}</span>
+                                </div>
+                              ))
+                            : (
+                              <div className="flex items-center">
+                                <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                                <span>{selectedPackage.features}</span>
+                              </div>
+                            )
+                        )}
+                        <div className="flex items-center">
+                          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                          <span>Komunikasi langsung dengan penyedia jasa</span>
+                        </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="border border-slate-200 rounded-2xl p-6 text-slate-600">Tidak ada paket tersedia untuk layanan ini.</div>
-              )}
 
-              <div className="border border-slate-200 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-1">{service.title || 'Layanan'}</h3>
-                    <p className="text-2xl font-bold text-blue-600">Rp {(selectedPackage?.price || 0).toLocaleString('id-ID')}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center text-slate-600 mb-1">
-                      <Clock className="w-4 h-4 mr-1" />
-                      <span className="text-sm">Pengiriman standar</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={handleChatSeller}
+                          className="flex items-center justify-center space-x-2 px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 hover:shadow-md active:scale-95 transition-all cursor-pointer duration-200"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                          <span>Chat Penyedia Jasa</span>
+                        </button>
+
+                        <button
+                          onClick={handlePaymentNavigation}
+                          disabled={!selectedPackageId}
+                          className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-xl text-white transition-all duration-200 ${
+                            selectedPackageId
+                              ? 'bg-gradient-to-r from-blue-600 to-purple-500 hover:shadow-lg hover:opacity-95 active:scale-95'
+                              : 'bg-slate-300 cursor-not-allowed'
+                          }`}
+                        >
+                          <ShoppingCart className="w-5 h-5" />
+                          <span>Pesan Sekarang</span>
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-sm text-slate-600">Negosiabel</p>
-                  </div>
+                  )}
+                </>
+              ) : (
+                <div className="border border-slate-200 rounded-2xl p-6 text-slate-600">
+                  Tidak ada paket tersedia untuk layanan ini.
                 </div>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center text-slate-700">
-                    <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                    <span>{service.category_name || service.category || 'Layanan Profesional'}</span>
-                  </div>
-                  <div className="flex items-center text-slate-700">
-                    <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                    <span>Komunikasi langsung dengan penyedia jasa</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={handleChatSeller}
-                    className="flex items-center justify-center space-x-2 px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 hover:shadow-md active:scale-95 transition-all cursor-pointer duration-200"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    <span>Chat Penyedia Jasa</span>
-                  </button>
-                  
-                  <button
-                    onClick={handlePaymentNavigation}
-                    disabled={!selectedPackageId}
-                    className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-xl text-white transition-all duration-200 ${selectedPackageId ? 'bg-gradient-to-r from-blue-600 to-purple-500 hover:shadow-lg hover:opacity-95 active:scale-95' : 'bg-slate-300 cursor-not-allowed'}`}
-                  >
-                    <ShoppingCart className="w-5 h-5" />
-                    <span>Pesan Sekarang</span>
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
-
+            
             {/* Reviews */}
             <div className="bg-white rounded-2xl shadow-sm p-8">
               <div className="flex justify-between items-center mb-6">

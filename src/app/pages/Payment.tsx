@@ -130,10 +130,9 @@ export function Payment() {
                     <p className="font-semibold text-slate-800">{selectedPackage?.name || selectedPackage?.package_type || 'Paket terpilih'}</p>
                     <p className="text-sm text-slate-500">{selectedPackage?.description || 'Deskripsi paket tersedia'}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-blue-600">Rp {(selectedPackage?.price || 0).toLocaleString('id-ID')}</p>
-                    <p className="text-xs text-slate-500 mt-1">{selectedPackage?.delivery_days ? `${selectedPackage.delivery_days} hari` : 'Waktu pengiriman'}</p>
-                  </div>
+                  <p className="font-semibold text-blue-600">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(selectedPackage?.price || 0)}
+                  </p>
                 </div>
               </div>
 
