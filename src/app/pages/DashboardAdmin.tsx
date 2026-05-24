@@ -432,12 +432,27 @@ export function DashboardAdmin() {
 
   const pendingVerifications = paymentsData;
   const recentTransactions = transactionsData;
-  const transactionStats = dashboardStats?.transactions || {
-    total: dashboardStats?.orders?.total || 0,
-    completed: dashboardStats?.orders?.completed || 0,
-    pending: dashboardStats?.orders?.pending || 0,
-    revenue: dashboardStats?.revenue?.total_revenue || 0,
-  };
+  const transactionStats = {
+  total: transactionsData.filter((t: any) =>
+    (t.status || t.order_status || '').toLowerCase() === 'completed'
+  ).length,
+
+  completed: transactionsData.filter((t: any) =>
+    (t.status || t.order_status || '').toLowerCase() === 'completed'
+  ).length,
+
+  pending: transactionsData.filter((t: any) =>
+    (t.status || t.order_status || '').toLowerCase() === 'pending'
+  ).length,
+
+  revenue: transactionsData
+    .filter((t: any) =>
+      (t.status || t.order_status || '').toLowerCase() === 'completed'
+    )
+    .reduce((sum: number, t: any) =>
+      sum + Number(t.amount || t.order_price || 0), 0
+    ),
+};
 
   const handleLogout = () => {
     navigate('/');
