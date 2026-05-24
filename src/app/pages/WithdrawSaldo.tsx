@@ -23,7 +23,10 @@ export function WithdrawSaldo() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
 
-  const minWithdraw = 50000;
+  const minWithdraw = 500000;
+
+  const formatRupiah = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
   useEffect(() => {
     async function loadBalance() {
@@ -48,7 +51,7 @@ export function WithdrawSaldo() {
 
     const amountValue = Number(amount);
     if (!amountValue || isNaN(amountValue) || amountValue < minWithdraw || (availableBalance !== null && amountValue > availableBalance)) {
-      setError(`Masukkan jumlah penarikan antara Rp ${minWithdraw.toLocaleString('id-ID')} dan Rp ${availableBalance?.toLocaleString('id-ID') ?? '0'}`);
+      setError(`Masukkan jumlah penarikan antara ${formatRupiah(minWithdraw)} dan ${formatRupiah(availableBalance ?? 0)}`);
       return;
     }
 
@@ -70,7 +73,7 @@ export function WithdrawSaldo() {
       setIsSubmitting(true);
       await withdrawAPI.requestWithdraw(payload);
       setShowSuccess(true);
-      setSuccessMessage(`Permintaan penarikan saldo sebesar Rp ${amountValue.toLocaleString('id-ID')} sedang diproses.`);
+      setSuccessMessage(`Permintaan penarikan saldo sebesar ${formatRupiah(amountValue)} sedang diproses.`);
       setAvailableBalance((prev) => (prev !== null ? prev - amountValue : prev));
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Gagal mengajukan penarikan');
@@ -107,9 +110,9 @@ export function WithdrawSaldo() {
             <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 mb-8 text-white">
               <p className="text-green-100 mb-2">Saldo Tersedia</p>
               <p className="text-4xl font-bold">
-                Rp {availableBalance !== null ? availableBalance.toLocaleString('id-ID') : '...'}
+                {availableBalance !== null ? formatRupiah(availableBalance) : '...'}
               </p>
-              <p className="text-green-100 mt-2 text-sm">Minimum penarikan: Rp {minWithdraw.toLocaleString('id-ID')}</p>
+              <p className="text-green-100 mt-2 text-sm">Minimum penarikan: {formatRupiah(minWithdraw)}</p>
             </div>
 
             {error && (
@@ -143,7 +146,7 @@ export function WithdrawSaldo() {
                       onClick={() => setAmount(preset.toString())}
                       className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
                     >
-                      Rp {(preset / 1000).toFixed(0)}K
+                      {formatRupiah(preset)}
                     </button>
                   ))}
                   {availableBalance !== null && (

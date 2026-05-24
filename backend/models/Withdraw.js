@@ -46,16 +46,30 @@ class Withdraw {
   }
 
   static async approveWithdraw(id, approvedBy) {
-    const sql = `UPDATE withdraws SET status = 'approved', approved_by = ?, approved_at = CURRENT_TIMESTAMP, processed_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    // 1) update status terlebih dulu
+    const sql = `
+      UPDATE withdraws 
+      SET status = 'approved',
+          approved_by = ?,
+          approved_at = CURRENT_TIMESTAMP,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
     await query(sql, [approvedBy, id]);
-    
-    // Deduct from seller balance
+
+    // 2) ambil data withdraw (untuk amount & seller_id)
     const withdraw = await this.findById(id);
-    if (withdraw) {
-      const { query: dbQuery } = require('../config/database');
-      await dbQuery('UPDATE users SET balance = balance - ? WHERE id = (SELECT user_id FROM seller_profiles WHERE id = ?)', 
-                   [withdraw.amount, withdraw.seller_id]);
-    }
+    if (!withdraw) return;
+
+    // 3) deduct saldo seller berdasarkan user_id dari seller_profiles
+    // withdraw.seller_id mengarah ke seller_profiles.id
+    const { query: dbQuery } = require('../config/database');
+    await dbQuery(
+      `UPDATE users 
+       SET balance = balance - ?
+       WHERE id = (SELECT user_id FROM seller_profiles WHERE id = ?)`
+      , [withdraw.amount, withdraw.seller_id]
+    );
   }
 
   static async rejectWithdraw(id, approvedBy) {

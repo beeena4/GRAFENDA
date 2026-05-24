@@ -204,6 +204,17 @@ export const adminAPI = {
     const response = await api.put(`/payments/${paymentId}/release`);
     return response.data.data;
   },
+
+  // ===== Withdraw (Admin) =====
+  getPendingWithdraws: async (page = 1, limit = 10) => {
+    const response = await api.get(`/admin/withdraws?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
+  processWithdraw: async (withdrawId: number, action: 'approve' | 'reject') => {
+    const response = await api.put(`/admin/withdraws/${withdrawId}/process`, { action });
+    return response.data;
+  },
 };
 
 export const withdrawAPI = {
