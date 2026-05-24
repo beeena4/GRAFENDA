@@ -88,10 +88,13 @@ router.get('/seller', authenticateToken, async (req, res) => {
       [sellerId]
     );
 
+    // saldo seller (harusnya berubah setelah withdraw)
     const user = await db.query(
       `SELECT balance FROM users WHERE id = ?`,
       [userId]
     );
+
+
 
     const rating = await db.query(
       `SELECT AVG(rating) as avg_rating FROM reviews WHERE seller_id = ?`,

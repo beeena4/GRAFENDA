@@ -35,7 +35,10 @@ export function DashboardAdmin() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
+  const [withdrawsLoading, setWithdrawsLoading] = useState(true);
+  const [withdrawsData, setWithdrawsData] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
+
   const [paymentActionLoading, setPaymentActionLoading] = useState<Record<number, boolean>>({});
   const [ordersData, setOrdersData] = useState<any[]>([]);
   const [paymentsData, setPaymentsData] = useState<any[]>([]);
@@ -84,7 +87,8 @@ export function DashboardAdmin() {
     { id: 'users', icon: Users, label: 'Kelola User' },
     { id: 'sellers', icon: UserCheck, label: 'Kelola Freelancer' },
     { id: 'transactions', icon: DollarSign, label: 'Transaksi' },
-    { id: 'verification', icon: CheckCircle, label: 'Verifikasi Pembayaran' },
+    // Disatukan dengan verifikasi pembayaran
+    { id: 'verification', icon: CheckCircle, label: 'Verifikasi' },
   ];
 
   const loadDashboardStats = async (showLoading = true) => {
@@ -156,6 +160,7 @@ export function DashboardAdmin() {
   };
 
   const loadPaymentsData = async (showLoading = true) => {
+
     if (showLoading) setPaymentsLoading(true);
     setError(null);
     try {
@@ -169,7 +174,22 @@ export function DashboardAdmin() {
     }
   };
 
+  const loadWithdrawsData = async (showLoading = true) => {
+    if (showLoading) setWithdrawsLoading(true);
+    setError(null);
+    try {
+      const withdrawsResult = await adminAPI.getPendingWithdraws(1, 100);
+      setWithdrawsData(withdrawsResult.withdraws || []);
+    } catch (err: any) {
+      setError(err?.message || 'Gagal memuat data withdraw');
+      setWithdrawsData([]);
+    } finally {
+      if (showLoading) setWithdrawsLoading(false);
+    }
+  };
+
   const loadTransactionsData = async (showLoading = true) => {
+
     if (showLoading) setTransactionsLoading(true);
     setError(null);
     try {
@@ -211,6 +231,7 @@ export function DashboardAdmin() {
           loadUsersData(showLoading),
           loadOrdersData(showLoading),
           loadPaymentsData(showLoading),
+          loadWithdrawsData(showLoading),
           loadTransactionsData(showLoading),
         ]);
       } finally {
@@ -290,6 +311,27 @@ export function DashboardAdmin() {
       showToast(err?.response?.data?.message || err?.message || "Terjadi kesalahan saat memverifikasi.", "error");
     } finally {
       setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: false }));
+    }
+  };
+
+  const processWithdrawAction = async (withdrawId: number, action: 'approve' | 'reject') => {
+    setError(null);
+    setActionLoading((prev) => ({ ...prev, [withdrawId]: true }));
+
+    try {
+      await adminAPI.processWithdraw(withdrawId, action);
+      showToast(
+        action === 'approve' ? 'Withdraw disetujui.' : 'Withdraw ditolak.',
+        'success'
+      );
+      await loadWithdrawsData();
+      await loadDashboardStats(false);
+      await loadTransactionsData(false);
+    } catch (err: any) {
+      setError(err?.message || 'Gagal memproses withdraw');
+      showToast(err?.response?.data?.message || err?.message || 'Gagal memproses withdraw', 'error');
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [withdrawId]: false }));
     }
   };
 
@@ -826,71 +868,148 @@ export function DashboardAdmin() {
 
       case 'verification':
         return (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-800">Verifikasi Pembayaran</h2>
-              <p className="text-sm text-slate-500">Menampilkan pembayaran yang menunggu persetujuan admin.</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Order ID</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Buyer</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Metode</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paymentsLoading ? (
-                    Array.from({ length: 5 }).map((_, idx) => (
-                      <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
-                        {Array.from({ length: 7 }).map((__, colIdx) => (
-                          <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : paymentsData.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada pembayaran yang perlu diverifikasi.</td>
+          <div className="space-y-8">
+            {/* Verifikasi Pembayaran */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-800">Verifikasi Pembayaran</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Order ID</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Buyer</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jasa</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Metode</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
                     </tr>
-                  ) : (
-                    paymentsData.map((item: any) => {
-                      const orderId = item.order_id || item.orderId || item.id;
-                      const buyer = item.buyer_name || item.buyer || '-';
-                      const service = item.title || item.service_title || item.service || '-';
-                      const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
-                      const date = item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-';
-                      const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : '-';
-
-                      return (
-                        <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
-                          <td className="py-4 px-4 text-sm text-slate-600">{buyer}</td>
-                          <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
-                          <td className="py-4 px-4 text-sm text-slate-600 capitalize">{method}</td>
-                          <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
-                          <td className="py-4 px-4 text-sm text-slate-600">{date}</td>
-                          <td className="py-4 px-4">
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                                onClick={() => handleVerifyPaymentClick(item.id)}
-                                disabled={Boolean(paymentActionLoading[item.id])}
-                              >
-                                {paymentActionLoading[item.id] ? 'Memproses...' : 'Verifikasi'}
-                              </button>
-                            </div>
-                          </td>
+                  </thead>
+                  <tbody>
+                    {paymentsLoading ? (
+                      Array.from({ length: 5 }).map((_, idx) => (
+                        <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
+                          {Array.from({ length: 7 }).map((__, colIdx) => (
+                            <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
+                          ))}
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                      ))
+                    ) : paymentsData.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada pembayaran yang perlu diverifikasi.</td>
+                      </tr>
+                    ) : (
+                      paymentsData.map((item: any) => {
+                        const orderId = item.order_id || item.orderId || item.id;
+                        const buyer = item.buyer_name || item.buyer || '-';
+                        const service = item.title || item.service_title || item.service || '-';
+                        const method = item.payment_method ? item.payment_method.replace('_', ' ') : '-';
+                        const date = item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-';
+                        const amount = item.amount ? `Rp ${Number(item.amount).toLocaleString('id-ID')}` : '-';
+
+                        return (
+                          <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(orderId).padStart(6, '0')}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{buyer}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{service}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600 capitalize">{method}</td>
+                            <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{date}</td>
+                            <td className="py-4 px-4">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  onClick={() => handleVerifyPaymentClick(item.id)}
+                                  disabled={Boolean(paymentActionLoading[item.id])}
+                                >
+                                  {paymentActionLoading[item.id] ? 'Memproses...' : 'Verifikasi'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Verifikasi Withdraw (digabung dalam menu yang sama) */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-800">Pencairan Dana (Withdraw)</h2>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Seller</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Jumlah</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Bank</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">No Rek</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Atas Nama</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Tanggal</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {withdrawsLoading ? (
+                      Array.from({ length: 5 }).map((_, idx) => (
+                        <tr key={idx} className="animate-pulse bg-white border-b border-slate-100">
+                          {Array.from({ length: 7 }).map((__, colIdx) => (
+                            <td key={colIdx} className="py-4 px-4"><div className="h-4 bg-slate-200 rounded" /></td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : withdrawsData.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-500">
+                          Tidak ada withdraw yang menunggu saat ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      withdrawsData.map((w: any) => {
+                        const sellerName = w.seller_name || w.seller_name || w.seller_user_id || '-';
+                        const amount = w.amount != null ? `Rp ${Number(w.amount).toLocaleString('id-ID')}` : '-';
+                        const date = w.created_at ? new Date(w.created_at).toLocaleDateString('id-ID') : '-';
+
+                        return (
+                          <tr key={w.id} className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="py-4 px-4 text-sm font-medium text-slate-800">{sellerName}</td>
+                            <td className="py-4 px-4 text-sm font-semibold text-slate-800">{amount}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{w.bank_name || '-'}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{w.account_number || '-'}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{w.account_holder || '-'}</td>
+                            <td className="py-4 px-4 text-sm text-slate-600">{date}</td>
+                            <td className="py-4 px-4">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  onClick={() => processWithdrawAction(w.id, 'approve')}
+                                  disabled={Boolean(actionLoading[w.id])}
+                                >
+                                  {actionLoading[w.id] ? 'Memproses...' : 'Approve'}
+                                </button>
+                                <button
+                                  className="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 hover:bg-red-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  onClick={() => processWithdrawAction(w.id, 'reject')}
+                                  disabled={Boolean(actionLoading[w.id])}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
