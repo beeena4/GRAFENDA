@@ -1,4 +1,4 @@
-﻿const { query } = require('../config/database');
+﻿﻿const { query } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 const safeValue = (value) => value === undefined ? null : value;
@@ -79,34 +79,43 @@ class User {
   }
 
   static async getAllUsers(filters = {}, page = 1, limit = 10) {
-    let sql = `SELECT id, email, full_name, role, avatar, phone, is_verified, created_at FROM users WHERE 1=1`;
+    let sql = `
+      SELECT 
+        u.id, u.email, u.full_name, u.role, u.avatar, u.phone, u.is_verified, u.created_at,
+        (SELECT COUNT(*) FROM orders o WHERE o.buyer_id = u.id) AS total_orders_as_buyer,
+        (SELECT COUNT(*) FROM services s JOIN seller_profiles sp ON s.seller_id = sp.id WHERE sp.user_id = u.id) AS total_services,
+        (SELECT COUNT(*) FROM orders o JOIN seller_profiles sp ON o.seller_id = sp.id WHERE sp.user_id = u.id) AS total_orders_as_seller,
+        (SELECT COALESCE(SUM(o.price), 0) FROM orders o JOIN seller_profiles sp ON o.seller_id = sp.id WHERE sp.user_id = u.id AND o.status = 'completed') AS total_revenue,
+        (SELECT rating FROM seller_profiles sp WHERE sp.user_id = u.id LIMIT 1) AS rating
+      FROM users u WHERE 1=1
+    `;
     const params = [];
 
     if (filters.role) {
-      sql += ` AND role = ?`;
+      sql += ` AND u.role = ?`;
       params.push(filters.role);
     }
 
     if (filters.search) {
-      sql += ` AND (full_name LIKE ? OR email LIKE ?)`;
+      sql += ` AND (u.full_name LIKE ? OR u.email LIKE ?)`;
       params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
-    sql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    sql += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
     params.push(limit, (page - 1) * limit);
 
     const users = await query(sql, params);
 
-    let countSql = `SELECT COUNT(*) as total FROM users WHERE 1=1`;
+    let countSql = `SELECT COUNT(*) as total FROM users u WHERE 1=1`;
     const countParams = [];
 
     if (filters.role) {
-      countSql += ` AND role = ?`;
+      countSql += ` AND u.role = ?`;
       countParams.push(filters.role);
     }
 
     if (filters.search) {
-      countSql += ` AND (full_name LIKE ? OR email LIKE ?)`;
+      countSql += ` AND (u.full_name LIKE ? OR u.email LIKE ?)`;
       countParams.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 

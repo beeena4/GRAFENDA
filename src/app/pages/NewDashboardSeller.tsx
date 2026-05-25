@@ -271,7 +271,7 @@ export function NewDashboardSeller() {
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-              <h4 className="font-bold text-slate-800">{formatRupiah(order.price)}</h4>
+              <h4 className="font-bold text-slate-800">{formatRupiah(Number(order.price) || 0)}</h4>
               <div className="flex items-center gap-2">
                 {/* Tampilkan Terima/Tolak HANYA saat pesanan pending */}
                 {safeStatus === 'pending' && (
@@ -347,7 +347,7 @@ export function NewDashboardSeller() {
               <div className="p-5">
                 <h3 className="font-semibold text-slate-800 line-clamp-2 mb-4">{service.title}</h3>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-bold text-blue-600">{formatRupiah(service.price)}</span>
+                  <span className="font-bold text-blue-600">{formatRupiah(Number(service.price) || 0)}</span>
                   <div className="text-sm text-slate-500">⭐ {service.rating ? Number(service.rating).toFixed(1) : '0.0'}</div>
                 </div>
                 <div className="flex gap-2">
@@ -385,9 +385,9 @@ export function NewDashboardSeller() {
 
   const renderEarnings = () => {
     const safeEarnings = Array.isArray(earnings) ? earnings : [];
-    const total = safeEarnings.reduce((sum, e) => sum + (e?.amount || 0), 0);
-    const completed = safeEarnings.filter(e => e?.status === 'completed').reduce((sum, e) => sum + (e?.amount || 0), 0);
-    const pending = total - completed;
+    
+    const total = stats.total_earnings || safeEarnings.reduce((sum, e) => sum + (Number(e?.amount) || 0), 0);
+    const pending = stats.pending_earnings || safeEarnings.filter(e => e?.status !== 'completed').reduce((sum, e) => sum + (Number(e?.amount) || 0), 0);
 
     return (
       <div className="space-y-6">
@@ -421,7 +421,7 @@ export function NewDashboardSeller() {
                     <p className="text-sm text-slate-500">{item.date}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-slate-800">{formatRupiah(item.amount)}</p>
+                    <p className="font-bold text-slate-800">{formatRupiah(Number(item.amount) || 0)}</p>
                     <span className={`text-xs px-3 py-1 rounded-full ${item.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                       {item.status === 'completed' ? 'Selesai' : 'Pending'}
                     </span>
