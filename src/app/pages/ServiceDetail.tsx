@@ -174,12 +174,23 @@ export function ServiceDetail() {
 
       navigate(`/chat/${newOrderId}`, { state: { serviceName: service?.title, orderId: newOrderId } });
     } catch (err: any) {
+      // 3. Tangkap penolakan Hard-Block dari backend saat akan memicu pembuatan pesanan (lewat chat)
+      const backendMessage = err.response?.data?.message;
+      if (err.response?.status === 400) {
+        alert(backendMessage || 'Gagal! Antrean pesanan untuk freelancer ini sudah penuh.');
+      }
       // Aman: jangan rusak routing dashboard/admin/user
       navigate('/search');
     }
   };
 
   const handlePaymentNavigation = () => {
+    // HARD BLOCK: Cegat akses navigasi ke checkout jika antrean penuh
+    if (isSellerFull) {
+      alert('Peringatan: Antrean seller ini sedang penuh. Silakan coba kembali nanti.');
+      return;
+    }
+
     if (!selectedPackageId) return;
     navigate(`/payment/${id}`, { state: { selectedPackageId } });
   };
@@ -211,10 +222,11 @@ export function ServiceDetail() {
     );
   }
 
-  // Mengecek apakah seller sedang penuh antreannya
-  const isSellerFull = service?.seller_max_orders != null 
-    ? (service?.seller_active_orders || 0) >= service.seller_max_orders 
-    : false;
+  // 1 & 3. Sinkronkan Key dan gunakan Optional Chaining & Nilai Default
+  const activeOrders = service?.totalActive ?? service?.seller_active_orders ?? 0;
+  const maxOrders = service?.seller_max_orders ?? 5;
+
+  const isSellerFull = activeOrders >= maxOrders;
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">

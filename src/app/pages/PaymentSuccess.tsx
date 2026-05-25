@@ -106,7 +106,7 @@ export function PaymentSuccess() {
             </div>
             <div>
               <p className="font-semibold text-slate-800">Pembayaran Diproses!</p>
-              <p className="text-sm text-slate-600">Menunggu verifikasi admin</p>
+              <p className="text-sm text-slate-600">Pembayaran berhasil diproses.</p>
             </div>
           </div>
         </div>
@@ -119,16 +119,18 @@ export function PaymentSuccess() {
               <CheckCircle className="w-12 h-12 text-green-600" />
             </div>
 
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Menunggu Verifikasi!</h1>
-            <p className="text-slate-600 mb-8">Pembayaran Anda sedang diverifikasi oleh admin</p>
+            <h1 className="text-2xl font-bold text-slate-800 mb-4">Pembayaran Berhasil!</h1>
+            <p className="text-slate-600 mb-8">Pembayaran Anda telah diterima. Seller akan segera memproses pesananmu.</p>
+
 
             {/* Invoice Dinamis */}
             <div className="bg-slate-50 rounded-xl p-6 mb-8 text-left border border-slate-100">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800">Invoice</h2>
-                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
-                  Menunggu Verifikasi
+                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+                  Berhasil
                 </span>
+
               </div>
 
               <div className="space-y-4">

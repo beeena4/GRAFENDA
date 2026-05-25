@@ -428,6 +428,7 @@ export const orderAPI = {
     package_id: number;
     title?: string;
     description?: string;
+    status?: string;
   }) => {
     const response = await api.post('/orders', data);
     return response.data.data;

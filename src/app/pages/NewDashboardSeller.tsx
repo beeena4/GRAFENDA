@@ -43,15 +43,15 @@ export function NewDashboardSeller() {
     const fetchData = async () => {
       try {
         const [dashboardData, ordersData] = await Promise.all([
-          dashboardAPI.getSellerDashboard(),
-          orderAPI.getUserOrders(1, 100)
+          dashboardAPI.getSellerDashboard().catch(() => ({})),
+          orderAPI.getUserOrders(1, 100).catch(() => ({}))
         ]);
         if (!isMounted) return;
-        setStats(dashboardData.stats || {});
-        setActiveOrders((dashboardData.active_orders || []).filter((o: any) => o.status !== 'pending'));
-        setSellerOrders(ordersData.orders || []);
-        setMyServices(dashboardData.services || []);
-        setEarnings(dashboardData.earnings || []);
+        setStats(dashboardData?.stats || { total_earnings: 0, active_orders: 0, balance: 0, pending_earnings: 0, rating: 0 });
+        setActiveOrders(Array.isArray(dashboardData?.active_orders) ? dashboardData.active_orders.filter((o: any) => o?.status !== 'pending') : []);
+        setSellerOrders(Array.isArray(ordersData) ? ordersData : (Array.isArray(ordersData?.orders) ? ordersData.orders : []));
+        setMyServices(Array.isArray(dashboardData?.services) ? dashboardData.services : []);
+        setEarnings(Array.isArray(dashboardData?.earnings) ? dashboardData.earnings : []);
       } catch (err) {
         console.error('Failed to fetch dashboard:', err);
       } finally {
@@ -74,13 +74,27 @@ export function NewDashboardSeller() {
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
       pending: 'Menunggu Konfirmasi',
-      paid: 'Sudah Dibayar',
+      accepted: 'Menunggu Pembayaran',
+      paid: 'Dalam Pengerjaan',
       process: 'Dalam Pengerjaan',
       revision: 'Revisi',
       completed: 'Selesai',
       cancelled: 'Dibatalkan',
     };
     return map[status] || status;
+  };
+
+  const getStatusColor = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'bg-amber-100 text-amber-700',
+      accepted: 'bg-orange-100 text-orange-700',
+      paid: 'bg-blue-100 text-blue-700',
+      process: 'bg-blue-100 text-blue-700',
+      revision: 'bg-yellow-100 text-yellow-700',
+      completed: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+    return map[status] || 'bg-slate-100 text-slate-700';
   };
 
   const statCards = [
@@ -135,14 +149,14 @@ export function NewDashboardSeller() {
     if (showLoading) setLoading(true);
     try {
       const [dashboardData, ordersData] = await Promise.all([
-        dashboardAPI.getSellerDashboard(),
-        orderAPI.getUserOrders(1, 100)
+        dashboardAPI.getSellerDashboard().catch(() => ({})),
+        orderAPI.getUserOrders(1, 100).catch(() => ({}))
       ]);
-      setStats(dashboardData.stats || {});
-      setActiveOrders((dashboardData.active_orders || []).filter((o: any) => o.status !== 'pending'));
-      setSellerOrders(ordersData.orders || []);
-      setMyServices(dashboardData.services || []);
-      setEarnings(dashboardData.earnings || []);
+      setStats(dashboardData?.stats || { total_earnings: 0, active_orders: 0, balance: 0, pending_earnings: 0, rating: 0 });
+      setActiveOrders(Array.isArray(dashboardData?.active_orders) ? dashboardData.active_orders.filter((o: any) => o?.status !== 'pending') : []);
+      setSellerOrders(Array.isArray(ordersData) ? ordersData : (Array.isArray(ordersData?.orders) ? ordersData.orders : []));
+      setMyServices(Array.isArray(dashboardData?.services) ? dashboardData.services : []);
+      setEarnings(Array.isArray(dashboardData?.earnings) ? dashboardData.earnings : []);
     } catch (err) {
       console.error('Failed to refresh dashboard:', err);
     } finally {
@@ -153,10 +167,13 @@ export function NewDashboardSeller() {
   const handleAcceptOrder = async (orderId: number) => {
     try {
       setLoading(true);
-      await orderAPI.updateOrderStatus(orderId, 'process');
+      // Tunggu proses update database selesai sepenuhnya (Pessimistic Update)
+      await orderAPI.updateOrderStatus(orderId, 'accepted');
+      // Refresh data terbaru (mutlak) dari server
       await refreshDashboard(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Gagal menerima order:', err);
+      alert(err?.response?.data?.message || 'Gagal menerima pesanan. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -165,10 +182,13 @@ export function NewDashboardSeller() {
   const handleRejectOrder = async (orderId: number) => {
     try {
       setLoading(true);
+      // Tunggu proses update database selesai sepenuhnya (Pessimistic Update)
       await orderAPI.updateOrderStatus(orderId, 'cancelled');
+      // Refresh data terbaru (mutlak) dari server
       await refreshDashboard(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Gagal menolak order:', err);
+      alert(err?.response?.data?.message || 'Gagal menolak pesanan. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -217,13 +237,17 @@ export function NewDashboardSeller() {
     }
   };
 
-  const renderOrders = () => (
+  const renderOrders = () => {
+    const safeOrders = Array.isArray(sellerOrders) ? sellerOrders : [];
+
+    return (
     <div className="space-y-5">
-      {sellerOrders.length === 0 ? (
+      {safeOrders.length === 0 ? (
         <p className="text-slate-400 text-center py-12">Belum ada order.</p>
       ) : (
-        sellerOrders.map((order) => {
-          const safeStatus = order.status ? String(order.status).toLowerCase().trim() : 'pending';
+        safeOrders.map((order) => {
+          if (!order) return null;
+          const safeStatus = order?.status ? order.status.toLowerCase().trim() : 'pending';
           
           return (
           <div key={order.id} className="bg-white rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
@@ -242,15 +266,15 @@ export function NewDashboardSeller() {
                 <p className="text-sm text-slate-500 mt-1">dari {order.buyer_name}</p>
                 <p className="text-sm text-slate-400 mt-1">Deadline: {order.delivery_days} hari</p>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(safeStatus)}`}>
                 {getStatusLabel(safeStatus)}
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 pt-4">
               <h4 className="font-bold text-slate-800">{formatRupiah(order.price)}</h4>
               <div className="flex items-center gap-2">
-                {/* Tampilkan Terima/Tolak baik saat pesanan masih pending maupun sudah dibayar */}
-                {(safeStatus === 'pending' || safeStatus === 'paid' || safeStatus === '') && (
+                {/* Tampilkan Terima/Tolak HANYA saat pesanan pending */}
+                {safeStatus === 'pending' && (
                   <>
                     <button
                       onClick={() => handleAcceptOrder(order.id)}
@@ -268,8 +292,8 @@ export function NewDashboardSeller() {
                     </button>
                   </>
                 )}
-                {/* Tampilkan Upload Hasil HANYA jika pesanan sudah berstatus dalam pengerjaan (process) */}
-                {safeStatus === 'process' && (
+              {/* Tampilkan Upload Hasil HANYA jika pesanan dalam pengerjaan (process atau paid) */}
+              {(safeStatus === 'paid' || safeStatus === 'process') && (
                   <button
                     onClick={() => handleUploadResult(order.id)}
                     className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-xl transition"
@@ -294,9 +318,12 @@ export function NewDashboardSeller() {
         )})
       )}
     </div>
-  );
+  )};
 
-  const renderServices = () => (
+  const renderServices = () => {
+    const safeServices = Array.isArray(myServices) ? myServices : [];
+
+    return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-800">Jasa Saya</h2>
@@ -304,11 +331,13 @@ export function NewDashboardSeller() {
           <Plus className="w-4 h-4" /><span>Tambah Jasa</span>
         </Link>
       </div>
-      {myServices.length === 0 ? (
+      {safeServices.length === 0 ? (
         <p className="text-slate-400 text-center py-12">Belum ada jasa. <Link to="/seller/service/add" className="text-blue-600">Tambah jasa</Link></p>
       ) : (
         <div className="grid lg:grid-cols-3 gap-6">
-          {myServices.map((service) => (
+          {safeServices.map((service) => {
+            if (!service) return null;
+            return (
             <div key={service.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
               {service.image ? (
                 <img src={service.image.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${service.image}` : service.image} alt={service.title} className="w-full h-48 object-cover" />
@@ -348,15 +377,16 @@ export function NewDashboardSeller() {
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>
-  );
+  )};
 
   const renderEarnings = () => {
-    const total = earnings.reduce((sum, e) => sum + e.amount, 0);
-    const completed = earnings.filter(e => e.status === 'completed').reduce((sum, e) => sum + e.amount, 0);
+    const safeEarnings = Array.isArray(earnings) ? earnings : [];
+    const total = safeEarnings.reduce((sum, e) => sum + (e?.amount || 0), 0);
+    const completed = safeEarnings.filter(e => e?.status === 'completed').reduce((sum, e) => sum + (e?.amount || 0), 0);
     const pending = total - completed;
 
     return (
@@ -378,11 +408,13 @@ export function NewDashboardSeller() {
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl p-6">
           <h3 className="text-xl font-bold text-slate-800 mb-6">Riwayat Transaksi</h3>
-          {earnings.length === 0 ? (
+          {safeEarnings.length === 0 ? (
             <p className="text-slate-400 text-center py-8">Belum ada transaksi</p>
           ) : (
             <div className="space-y-4">
-              {earnings.map((item, idx) => (
+              {safeEarnings.map((item, idx) => {
+                if (!item) return null;
+                return (
                 <div key={idx} className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-none">
                   <div>
                     <p className="font-medium text-slate-800">{item.description}</p>
@@ -395,7 +427,7 @@ export function NewDashboardSeller() {
                     </span>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>

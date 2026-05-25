@@ -67,9 +67,12 @@ class PaymentController {
 
       // Move order into paid status once buyer has uploaded payment proof.
       // The payment remains in escrow until admin verifies/release after completion.
-      if (order.status === 'pending') {
-        await Order.updateStatus(order_id, 'paid');
+      if (order.status === 'pending' || order.status === 'accepted') {
+        await Order.updateStatus(order_id, 'process');
       }
+
+      // Bypass verifikasi admin: Set status payment menjadi verified seketika
+      await pool.query(`UPDATE payments SET status = 'verified', verified_at = CURRENT_TIMESTAMP WHERE id = ?`, [paymentId]);
 
       // Notify admin for verification
       // In a real app, you'd notify admins here
@@ -228,13 +231,13 @@ class PaymentController {
       }
 
       await Payment.releasePayment(id, adminId);
-      await User.updateBalance(payment.seller_user_id, payment.order_price);
+      await User.updateBalance(order.seller_user_id, order.price);
 
       await NotificationService.createAndSendNotification(
-        payment.seller_user_id,
+        order.seller_user_id,
         {
           title: 'Dana Escrow Dicairkan',
-          message: `Dana sebesar Rp${Number(payment.order_price).toLocaleString('id-ID')} telah dicairkan ke saldo Anda setelah verifikasi transaksi.`,
+          message: `Dana sebesar Rp${Number(order.price).toLocaleString('id-ID')} telah dicairkan ke saldo Anda setelah verifikasi transaksi.`,
           type: 'payment',
           related_id: payment.id
         }

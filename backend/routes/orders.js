@@ -15,7 +15,7 @@ const createOrderValidation = [
 ];
 
 const updateStatusValidation = [
-  body('status').isIn(['pending', 'paid', 'process', 'revision', 'completed', 'cancelled'])
+  body('status').isIn(['pending', 'accepted', 'paid', 'process', 'revision', 'completed', 'cancelled'])
 ];
 
 // Routes
