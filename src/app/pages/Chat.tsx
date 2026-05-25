@@ -354,13 +354,15 @@ export function Chat() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => navigate(order?.service_id ? `/service/${order.service_id}` : '/search')}
-              className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:shadow-lg active:scale-95 transition-all duration-200"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              <span>{order?.service_id ? 'Lihat Layanan' : 'Cari Layanan'}</span>
-            </button>
+            {user?.role === 'user' && (
+              <button
+                onClick={() => navigate(order?.service_id ? `/service/${order.service_id}` : '/search')}
+                className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:shadow-lg active:scale-95 transition-all duration-200"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span>{order?.service_id ? 'Lihat Layanan' : 'Cari Layanan'}</span>
+              </button>
+            )}
           </div>
         </div>
 

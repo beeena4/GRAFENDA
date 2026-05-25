@@ -74,7 +74,7 @@ class Payment {
   }
 
   static async releasePayment(id, releasedBy) {
-    const sql = `UPDATE payments SET status = 'released', released_by = ?, released_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    const sql = `UPDATE payments SET status = 'verified', released_by = ?, released_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
     await query(sql, [releasedBy, id]);
   }
 
@@ -156,11 +156,11 @@ class Payment {
         COUNT(*) as total_payments,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_payments,
         SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as verified_payments,
-        SUM(CASE WHEN status = 'released' THEN 1 ELSE 0 END) as released_payments,
+        SUM(CASE WHEN status = 'released' OR released_at IS NOT NULL THEN 1 ELSE 0 END) as released_payments,
         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_payments,
         SUM(CASE WHEN status IN ('pending', 'verified') THEN 1 ELSE 0 END) as pending_transactions,
-        SUM(CASE WHEN status = 'released' THEN amount ELSE 0 END) as total_revenue,
-        AVG(CASE WHEN status = 'released' THEN amount ELSE NULL END) as avg_payment_amount
+        SUM(CASE WHEN status IN ('verified', 'released') OR released_at IS NOT NULL THEN amount ELSE 0 END) as total_revenue,
+        AVG(CASE WHEN status IN ('verified', 'released') OR released_at IS NOT NULL THEN amount ELSE NULL END) as avg_payment_amount
       FROM payments
     `;
     
@@ -175,7 +175,7 @@ class Payment {
       SELECT p.id, p.order_id, p.amount, p.payment_method, p.payment_proof, 
        p.verified_by, p.verified_at, p.released_at, p.created_at, p.updated_at,
              CASE 
-               WHEN p.status = 'released' THEN 'released'
+               WHEN p.status = 'released' OR p.released_at IS NOT NULL THEN 'released'
                WHEN o.status = 'completed' AND p.status IN ('pending', 'verified') THEN 'completed'
                ELSE p.status 
              END as status,

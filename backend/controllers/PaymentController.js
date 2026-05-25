@@ -255,6 +255,10 @@ class PaymentController {
 
       sendSuccess(res, 'Dana berhasil dicairkan ke seller');
     } catch (error) {
+      // Tangkap spesifik error MySQL untuk Data Truncated agar respons 400 Bad Request
+      if (error.code === 'WARN_DATA_TRUNCATED' || error.code === 'ER_TRUNCATED_WRONG_VALUE') {
+        return sendError(res, 'Status update pembayaran tidak valid atau ditolak oleh database (Data Truncated).', 400);
+      }
       sendError(res, error.message, 500);
     }
   }
