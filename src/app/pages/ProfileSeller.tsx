@@ -27,6 +27,7 @@ export function ProfileSeller() {
     portfolio: '',  // disimpan di seller_profiles
     bio: '',        // disimpan di seller_profiles
     avatar: '',
+    max_concurrent_orders: 5,
   });
 
   const [stats, setStats] = useState([
@@ -65,6 +66,7 @@ export function ProfileSeller() {
           portfolio: sp.portfolio_url || '', // dari seller_profiles
           bio: sp.bio || '',                 // dari seller_profiles
           avatar: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'S')}`,
+          max_concurrent_orders: sp.max_concurrent_orders ?? 5,
         });
         setAvatarPreview(user.avatar ? (user.avatar.startsWith('/') ? `${API_BASE_URL}${user.avatar}` : user.avatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'S')}`);
 
@@ -126,6 +128,7 @@ export function ProfileSeller() {
         skills: profile.skills || null,
         portfolio_url: profile.portfolio || null,
         bio: profile.bio || null,
+        max_concurrent_orders: Number(profile.max_concurrent_orders) || 5,
       });
 
       if (updatedUser) {
@@ -246,6 +249,17 @@ export function ProfileSeller() {
     } else {
       setAvatarPreview(profile.avatar ? (profile.avatar.startsWith('/') ? `${API_BASE_URL}${profile.avatar}` : profile.avatar) : '');
     }
+  };
+
+  const getStatusLabel = (status: string, isSeller = true) => {
+    if (!status || status === 'pending') return isSeller ? 'Menunggu Konfirmasi' : 'Menunggu Seller';
+    if (status === 'accepted') return 'Menunggu Pembayaran';
+    if (status === 'paid') return 'Sudah Dibayar';
+    if (status === 'process') return 'Dalam Pengerjaan';
+    if (status === 'completed') return 'Selesai';
+    if (status === 'cancelled') return 'Dibatalkan';
+    if (status === 'revision') return 'Revisi';
+    return status;
   };
 
   if (loading) return (
@@ -440,7 +454,7 @@ export function ProfileSeller() {
                       <h3 className="font-bold text-slate-800 mb-1">{order.title}</h3>
                       <p className="text-sm text-slate-600">Buyer: {order.buyer_name}</p>
                     </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{order.status}</span>
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{getStatusLabel(order.status, true)}</span>
                   </div>
                   <div className="flex justify-between items-center pt-4 border-t border-slate-200">
                     <div className="flex items-center space-x-4">
@@ -592,6 +606,25 @@ export function ProfileSeller() {
                   className={inputFieldClass}
                 />
               </div>
+
+              {/* Batas Maksimal Pesanan Berjalan */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Batas Maksimal Pesanan Berjalan</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={profile.max_concurrent_orders}
+                  onChange={(e) => {
+                    const v = e.target.value === '' ? '' : Number(e.target.value);
+                    setProfile({ ...profile, max_concurrent_orders: v === '' ? 0 : v });
+                  }}
+                  disabled={!isEditing}
+                  className={inputFieldClass}
+                />
+                <p className="text-xs text-slate-500 mt-2">Jumlah pesanan yang boleh berjalan sebelum tombol pemesanan dinonaktifkan.</p>
+              </div>
+
             </div>
           </div>
         );

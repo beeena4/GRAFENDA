@@ -4,16 +4,17 @@ const safeValue = (value) => value === undefined ? null : value;
 
 class SellerProfile {
   static async create(sellerData) {
-    const { user_id, bio, skills, experience_years, portfolio_url, location } = sellerData;
+    const { user_id, bio, skills, experience_years, portfolio_url, location, max_concurrent_orders } = sellerData;
 
-    const sql = `INSERT INTO seller_profiles (user_id, bio, skills, experience_years, portfolio_url, location) VALUES (?, ?, ?, ?, ?, ?)`;
+    const sql = `INSERT INTO seller_profiles (user_id, bio, skills, experience_years, portfolio_url, location, max_concurrent_orders) VALUES (?, ?, ?, ?, ?, ?, ?)`;
     const result = await query(sql, [
       user_id,
       safeValue(bio),
       safeValue(skills),
       safeValue(experience_years),
       safeValue(portfolio_url),
-      safeValue(location)
+      safeValue(location),
+      safeValue(max_concurrent_orders !== undefined ? max_concurrent_orders : 5)
     ]);
 
     return result.insertId;
@@ -44,12 +45,12 @@ class SellerProfile {
 
   // Tambah update (by id)
   static async update(id, updateData) {
-  const { bio, skills, experience_years, portfolio_url, location } = updateData;
+  const { bio, skills, experience_years, portfolio_url, location, max_concurrent_orders } = updateData;
 
   const sql = `
     UPDATE seller_profiles 
     SET bio = ?, skills = ?, experience_years = ?, portfolio_url = ?, 
-        location = ?, updated_at = CURRENT_TIMESTAMP 
+        location = ?, max_concurrent_orders = ?, updated_at = CURRENT_TIMESTAMP 
     WHERE id = ?
   `;
   await query(sql, [
@@ -58,6 +59,7 @@ class SellerProfile {
     safeValue(experience_years),
     safeValue(portfolio_url),
     safeValue(location),
+    safeValue(max_concurrent_orders),
     id
   ]);
 }

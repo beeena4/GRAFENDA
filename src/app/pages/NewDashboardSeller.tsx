@@ -222,7 +222,10 @@ export function NewDashboardSeller() {
       {sellerOrders.length === 0 ? (
         <p className="text-slate-400 text-center py-12">Belum ada order.</p>
       ) : (
-        sellerOrders.map((order) => (
+        sellerOrders.map((order) => {
+          const safeStatus = order.status ? String(order.status).toLowerCase().trim() : 'pending';
+          
+          return (
           <div key={order.id} className="bg-white rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
             <div className="flex items-start justify-between mb-5">
                 <div>
@@ -240,13 +243,14 @@ export function NewDashboardSeller() {
                 <p className="text-sm text-slate-400 mt-1">Deadline: {order.delivery_days} hari</p>
               </div>
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                {getStatusLabel(order.status)}
+                {getStatusLabel(safeStatus)}
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 pt-4">
               <h4 className="font-bold text-slate-800">{formatRupiah(order.price)}</h4>
               <div className="flex items-center gap-2">
-                {(order.status === 'pending' || order.status === 'paid') && (
+                {/* Tampilkan Terima/Tolak baik saat pesanan masih pending maupun sudah dibayar */}
+                {(safeStatus === 'pending' || safeStatus === 'paid' || safeStatus === '') && (
                   <>
                     <button
                       onClick={() => handleAcceptOrder(order.id)}
@@ -264,7 +268,8 @@ export function NewDashboardSeller() {
                     </button>
                   </>
                 )}
-                {order.status === 'process' && (
+                {/* Tampilkan Upload Hasil HANYA jika pesanan sudah berstatus dalam pengerjaan (process) */}
+                {safeStatus === 'process' && (
                   <button
                     onClick={() => handleUploadResult(order.id)}
                     className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-xl transition"
@@ -272,7 +277,7 @@ export function NewDashboardSeller() {
                     <Upload className="w-4 h-4" /><span>Upload Hasil</span>
                   </button>
                 )}
-                {order.status === 'revision' && (
+                {safeStatus === 'revision' && (
                   <button
                     onClick={() => handleUploadResult(order.id)}
                     className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-xl transition"
@@ -280,13 +285,13 @@ export function NewDashboardSeller() {
                     <Upload className="w-4 h-4" /><span>Kirim Revisi</span>
                   </button>
                 )}
-                {order.status === 'completed' && (
+                {safeStatus === 'completed' && (
                   <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">Hasil Terunggah</span>
                 )}
               </div>
             </div>
           </div>
-        ))
+        )})
       )}
     </div>
   );
