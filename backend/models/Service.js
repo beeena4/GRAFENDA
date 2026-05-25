@@ -38,6 +38,8 @@ class Service {
         s.*, 
         c.name as category_name, 
         sp.user_id as seller_user_id, 
+        sp.max_concurrent_orders as seller_max_orders,
+        (SELECT COUNT(*) FROM orders o WHERE o.seller_id = s.seller_id AND o.status IN ('pending', 'accepted', 'process')) as seller_active_orders,
         u.full_name as seller_name, 
         u.avatar as seller_avatar
       FROM services s

@@ -35,6 +35,9 @@ export function OrderDetail() {
   if (!order) {
     return <div className="p-10 text-center">Pesanan tidak ditemukan.</div>;
   }
+
+  // 1. Normalisasi Status & Anti-NULL (Wajib)
+  const safeStatus = order?.status ? order.status.toLowerCase().trim() : 'pending';
   
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -46,14 +49,7 @@ export function OrderDetail() {
           icon: <CheckCircle2 className="w-10 h-10 text-green-200" />,
           step: 4
         };
-      case "revision":
-        return {
-          color: "bg-yellow-500",
-          lightColor: "bg-yellow-50",
-          textColor: "text-yellow-600",
-          icon: <Star className="w-10 h-10 text-yellow-200" />,
-          step: 3
-        };
+      case "paid":
       case "process":
         return {
           color: "bg-blue-600",
@@ -62,12 +58,12 @@ export function OrderDetail() {
           icon: <Clock className="w-10 h-10 text-blue-200" />,
           step: 3
         };
-      case "paid":
+      case "accepted":
         return {
-          color: "bg-blue-600",
-          lightColor: "bg-blue-50",
-          textColor: "text-blue-600",
-          icon: <Clock className="w-10 h-10 text-blue-200" />,
+          color: "bg-orange-500",
+          lightColor: "bg-orange-50",
+          textColor: "text-orange-600",
+          icon: <Clock className="w-10 h-10 text-orange-200" />,
           step: 2
         };
       case "cancelled":
@@ -78,28 +74,33 @@ export function OrderDetail() {
           icon: <XCircle className="w-10 h-10 text-red-200" />,
           step: 0
         };
+      case "pending":
       default:
         return {
-          color: "bg-yellow-500",
-          lightColor: "bg-yellow-50",
-          textColor: "text-yellow-600",
-          icon: <Clock className="w-10 h-10 text-yellow-200" />,
+          color: "bg-slate-500",
+          lightColor: "bg-slate-50",
+          textColor: "text-slate-600",
+          icon: <Clock className="w-10 h-10 text-slate-200" />,
           step: 1
         };
     }
   };
 
-  const config = getStatusConfig(order.status || '');
+  const config = getStatusConfig(safeStatus);
 
   const formatRupiah = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount || 0);
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
-      pending: 'Menunggu', paid: 'Dibayar', process: 'Dalam Proses',
-      revision: 'Revisi', completed: 'Selesai', cancelled: 'Dibatalkan',
+      pending: 'Menunggu Seller', 
+      accepted: 'Menunggu Pembayaran',
+      paid: 'Sedang Diproses', 
+      process: 'Sedang Diproses',
+      completed: 'Selesai', 
+      cancelled: 'Dibatalkan',
     };
-    return map[status] || status;
+    return map[status] || 'Menunggu';
   };
 
   const handleDownloadResult = async (url: string, filename: string) => {
@@ -136,18 +137,18 @@ export function OrderDetail() {
           <div className={`${config.color} p-6 text-white flex justify-between items-center transition-colors duration-500`}>
             <div>
               <p className="opacity-80 text-sm">Status Pesanan</p>
-              <h1 className="text-xl font-bold">{getStatusLabel(order.status || '')}</h1>
+              <h1 className="text-xl font-bold">{getStatusLabel(safeStatus)}</h1>
             </div>
             {config.icon}
           </div>
 
           <div className="p-8 space-y-8">
             {/* Progress Step */}
-            {order.status !== 'cancelled' && (
+            {safeStatus !== 'cancelled' && (
               <div className="relative flex justify-between">
                 {[
-                  { label: "Verifikasi", step: 1 },
-                  { label: "Dibayar", step: 2 },
+                  { label: "Menunggu", step: 1 },
+                  { label: "Bayar", step: 2 },
                   { label: "Proses", step: 3 },
                   { label: "Selesai", step: 4 },
                 ].map((item, index) => (
@@ -197,8 +198,19 @@ export function OrderDetail() {
                   <span>Chat Seller</span>
                 </button>
 
+                {/* Tombol Bayar Sekarang */}
+                {safeStatus === "accepted" && (
+                  <button 
+                    onClick={() => navigate(`/payment/${order.service_id}`, { state: { selectedPackageId: order.package_id, orderId: order.id } })}
+                    className="flex items-center justify-center space-x-2 w-full py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all cursor-pointer active:scale-[0.98]"
+                  >
+                    <Clock className="w-5 h-5" />
+                    <span>Bayar Sekarang</span>
+                  </button>
+                )}
+
                 {/* Unduh Hasil */}
-                {order.status === "completed" && order.result_image && (
+                {safeStatus === "completed" && order.result_image && (
                   <button 
                     onClick={() => handleDownloadResult(order.result_image, `Hasil_Order_GRF-${order.id}`)}
                     className="flex items-center justify-center space-x-2 w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition-all cursor-pointer active:scale-[0.98]"
@@ -209,7 +221,7 @@ export function OrderDetail() {
                 )}
 
                 {/* Beri Review */}
-                {order.status === "completed" && (
+                {safeStatus === "completed" && (
                   <button 
                     onClick={() => navigate(`/order/${order.id}/review`, { 
                       state: { 
@@ -224,7 +236,8 @@ export function OrderDetail() {
                   </button>
                 )}
 
-                {(order.status === "process" || order.status === "paid") && (
+                {/* Info Seller sedang mengerjakan */}
+                {(safeStatus === "paid" || safeStatus === "process") && (
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <p className="text-xs text-blue-700 leading-relaxed text-center italic">
                       "Seller sedang mengerjakan pesananmu. Kamu akan menerima notifikasi jika pengerjaan telah selesai."

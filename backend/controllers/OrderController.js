@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const Payment = require('../models/Payment');
 const NotificationService = require('../services/NotificationService');
 const { sendSuccess, sendError, getPaginationData } = require('../utils/helpers');
+const pool = require('../config/database');
 
 class OrderController {
   // Create order
@@ -36,13 +37,22 @@ class OrderController {
         return sendError(res, 'Cannot order your own service', 400);
       }
 
-      // Check seller's active orders limit
-      const activeOrders = await Order.getSellerActiveOrders(service.seller_id);
+      // 1 & 2. PERTAHANAN MUTLAK BACKEND: Hitung real-time tepat sebelum insert
       const SellerProfile = require('../models/SellerProfile');
       const sellerProfile = await SellerProfile.findByUserId(service.seller_user_id);
-      
-      if (activeOrders >= sellerProfile.max_concurrent_orders) {
-        return sendError(res, 'Seller has reached maximum concurrent orders', 400);
+      const limit_seller = sellerProfile?.max_concurrent_orders || 5;
+
+      const [orderCounts] = await pool.query(
+        `SELECT COUNT(*) as totalActive FROM orders WHERE seller_id = ? AND status IN ('pending', 'accepted', 'process')`,
+        [service.seller_id]
+      );
+      const activeCount = parseInt(orderCounts?.[0]?.totalActive) || 0;
+
+      if (activeCount >= limit_seller) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Gagal! Antrean pesanan untuk freelancer ini sudah penuh.' 
+        });
       }
 
       // Create order
@@ -140,7 +150,7 @@ class OrderController {
 
       // Check permissions
       const canUpdate = (role === 'seller' && order.seller_user_id === userId) ||
-                       (role === 'user' && order.buyer_id === userId && status === 'cancelled') ||
+                       (role === 'user' && order.buyer_id === userId && (status === 'cancelled' || status === 'process' || status === 'paid')) ||
                        role === 'admin';
 
       if (!canUpdate) {
@@ -148,9 +158,10 @@ class OrderController {
       }
 
       // Validate status transitions
-      const validStatuses = ['pending', 'paid', 'process', 'revision', 'completed', 'cancelled'];
+      const validStatuses = ['pending', 'accepted', 'paid', 'process', 'revision', 'completed', 'cancelled'];
       if (!validStatuses.includes(status)) {
-        return sendError(res, 'Invalid status', 400);
+        console.error(`[OrderController] Update ditolak: Status '${status}' tidak dikenali.`);
+        return sendError(res, `Invalid status: ${status}`, 400);
       }
 
       await Order.updateStatus(id, status, userId);

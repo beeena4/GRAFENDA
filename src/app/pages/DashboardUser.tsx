@@ -82,6 +82,7 @@ export function DashboardUser() {
       revision: 'bg-yellow-100 text-yellow-700',
       process: 'bg-blue-100 text-blue-700',
       paid: 'bg-blue-100 text-blue-700',
+      accepted: 'bg-orange-100 text-orange-700',
       pending: 'bg-amber-100 text-amber-700',
       cancelled: 'bg-red-100 text-red-700',
     };
@@ -91,7 +92,8 @@ export function DashboardUser() {
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
       pending: 'Menunggu Seller',
-      paid: 'Sudah Dibayar',
+      accepted: 'Menunggu Pembayaran',
+      paid: 'Dalam Proses',
       process: 'Dalam Proses',
       revision: 'Revisi',
       completed: 'Selesai',
@@ -102,7 +104,7 @@ export function DashboardUser() {
 
   const statCards = [
     { icon: ShoppingCart, label: "Total Pesanan", value: stats.total_orders, color: "from-blue-500 to-blue-600" },
-    { icon: Clock, label: "Menunggu Review", value: stats.pending_review, color: "from-yellow-500 to-yellow-600" },
+    { icon: Clock, label: "Menunggu", value: stats.pending_review, color: "from-yellow-500 to-yellow-600" },
     { icon: Package, label: "Sedang Dikerjakan", value: stats.active_orders, color: "from-green-500 to-green-600" },
     { icon: MessageCircle, label: "Chat Baru", value: stats.unread_chats || 0, color: "from-purple-500 to-purple-600" },
   ];

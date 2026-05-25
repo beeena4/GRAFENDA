@@ -164,7 +164,7 @@ export function DashboardAdmin() {
     if (showLoading) setPaymentsLoading(true);
     setError(null);
     try {
-      const paymentsResult = await adminAPI.getPendingPayments(1, 100);
+      const paymentsResult = await adminAPI.getPendingReleasePayments(1, 100);
       setPaymentsData(paymentsResult.payments);
     } catch (err: any) {
       setError(err?.message || 'Gagal memuat data verifikasi pembayaran');
@@ -300,7 +300,7 @@ export function DashboardAdmin() {
     setPaymentActionLoading((prev) => ({ ...prev, [paymentId]: true }));
     setError(null);
     try {
-      await adminAPI.verifyPayment(paymentId, 'verify');
+      await adminAPI.releasePayment(paymentId);
       showToast("Sukses! Verifikasi berhasil dan dana telah dicairkan.", "success");
       await loadPaymentsData();
       await loadDashboardStats();
@@ -472,7 +472,7 @@ export function DashboardAdmin() {
 
             {/* Pending Verifications */}
             <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">Verifikasi Pembayaran Menunggu</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">Verifikasi Order Selesai (Pencairan Dana)</h2>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -887,7 +887,7 @@ export function DashboardAdmin() {
             {/* Verifikasi Pembayaran */}
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-800">Verifikasi Pembayaran</h2>
+                <h2 className="text-2xl font-bold text-slate-800">Verifikasi Order Selesai (Pencairan Dana)</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
