@@ -58,7 +58,11 @@ export function Payment() {
       navigate(`/payment-success/${order.id}`);
     } catch (err: any) {
       console.error('Error creating order/payment:', err);
-      setError(err.response?.data?.message || err.message || 'Gagal memproses pembayaran.');
+      if (err.response?.status === 409) {
+        setError('Gagal memesan: Antrean freelancer ini sedang penuh. Silakan coba kembali nanti.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Gagal memproses pembayaran.');
+      }
     } finally {
       setSubmitting(false);
     }

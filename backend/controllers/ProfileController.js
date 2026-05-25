@@ -85,7 +85,8 @@ class ProfileController {
         social_links,
         experience_years,
         education,
-        certifications
+        certifications,
+        max_concurrent_orders
       } = req.body;
 
       // Normalize skills: terima string atau array
@@ -109,7 +110,8 @@ class ProfileController {
           social_links: JSON.stringify(social_links || {}),
           experience_years,
           education: JSON.stringify(education || []),
-          certifications: JSON.stringify(certifications || [])
+          certifications: JSON.stringify(certifications || []),
+          max_concurrent_orders: max_concurrent_orders !== undefined ? max_concurrent_orders : 5
         });
         sellerProfile = await SellerProfile.findById(sellerProfileId);
       } else {
@@ -121,7 +123,8 @@ class ProfileController {
           social_links: social_links ? JSON.stringify(social_links) : sellerProfile.social_links,
           experience_years,
           education: education ? JSON.stringify(education) : sellerProfile.education,
-          certifications: certifications ? JSON.stringify(certifications) : sellerProfile.certifications
+          certifications: certifications ? JSON.stringify(certifications) : sellerProfile.certifications,
+          max_concurrent_orders: max_concurrent_orders !== undefined ? max_concurrent_orders : sellerProfile.max_concurrent_orders
         });
         sellerProfile = await SellerProfile.findById(sellerProfile.id);
       }

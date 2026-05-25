@@ -60,6 +60,7 @@ export const authAPI = {
     skills?: string | null;
     portfolio_url?: string | null;
     bio?: string | null;
+    max_concurrent_orders?: number;
   }) => {
     const response = await api.put('/profile/seller', data);
     return response.data.data;

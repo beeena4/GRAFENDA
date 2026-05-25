@@ -90,7 +90,7 @@ export function DashboardUser() {
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
-      pending: 'Menunggu Verifikasi',
+      pending: 'Menunggu Seller',
       paid: 'Sudah Dibayar',
       process: 'Dalam Proses',
       revision: 'Revisi',
@@ -164,14 +164,16 @@ export function DashboardUser() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentOrders.map((order) => (
+                  {recentOrders.map((order) => {
+                    const safeStatus = order.status ? order.status.toLowerCase().trim() : 'pending';
+                    return (
                     <tr key={order.id} className="border-b border-slate-100 hover:bg-blue-50 transition-colors duration-200">
                       <td className="py-4 px-4 text-sm font-medium text-slate-800">GRF-{String(order.id).padStart(6, '0')}</td>
                       <td className="py-4 px-4 text-sm text-slate-600">{order.title || order.service_title || order.service || '-'}</td>
                       <td className="py-4 px-4 text-sm text-slate-600">{order.seller_name}</td>
                       <td className="py-4 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor(safeStatus)}`}>
+                          {getStatusLabel(safeStatus)}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-sm font-semibold text-slate-800">{formatRupiah(order.price)}</td>
@@ -183,7 +185,7 @@ export function DashboardUser() {
                           <Link to={`/order-detail/${order.id}`} className="text-blue-600 hover:text-blue-700 text-sm font-bold">
                             Detail
                           </Link>
-                          {order.status === 'completed' && order.result_image && (
+                          {safeStatus === 'completed' && order.result_image && (
                             <button
                               onClick={() => handleDownloadResult(order.result_image, `Hasil_Order_GRF-${order.id}`)}
                               className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm font-bold transition-colors"
@@ -195,7 +197,7 @@ export function DashboardUser() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

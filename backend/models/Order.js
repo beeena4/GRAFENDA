@@ -2,10 +2,11 @@ const { query } = require('../config/database');
 
 class Order {
   static async create(orderData) {
-    const { buyer_id, seller_id, service_id, package_id, title, description, price, delivery_days, max_revisions } = orderData;
+    const { buyer_id, seller_id, service_id, package_id, title, description, price, delivery_days, max_revisions, status = 'pending' } = orderData;
     
-    const sql = `INSERT INTO orders (buyer_id, seller_id, service_id, package_id, title, description, price, delivery_days, max_revisions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    const result = await query(sql, [buyer_id, seller_id, service_id, package_id, title, description, price, delivery_days, max_revisions]);
+    // Status secara eksplisit diset default menjadi 'pending' untuk mencegah NULL
+    const sql = `INSERT INTO orders (buyer_id, seller_id, service_id, package_id, title, description, price, delivery_days, max_revisions, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const result = await query(sql, [buyer_id, seller_id, service_id, package_id, title, description, price, delivery_days, max_revisions, status]);
     
     return result.insertId;
   }

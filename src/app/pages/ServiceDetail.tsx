@@ -1,5 +1,5 @@
 import { useNavigate, useParams, Link } from "react-router";
-import { Star, Clock, CheckCircle2, MessageCircle, ShoppingCart, Award, ArrowLeft } from "lucide-react";
+import { Star, Clock, CheckCircle2, MessageCircle, ShoppingCart, Award, ArrowLeft, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 // Asumsi Anda memiliki fungsi subscribe di API Anda untuk realtime
 import { serviceAPI, reviewAPI, API_ASSET_URL } from "../../services/api"; 
@@ -211,6 +211,11 @@ export function ServiceDetail() {
     );
   }
 
+  // Mengecek apakah seller sedang penuh antreannya
+  const isSellerFull = service?.seller_max_orders != null 
+    ? (service?.seller_active_orders || 0) >= service.seller_max_orders 
+    : false;
+
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -315,6 +320,13 @@ export function ServiceDetail() {
                         </div>
                       </div>
 
+                      {isSellerFull && (
+                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-start">
+                          <AlertCircle className="w-5 h-5 mr-2 shrink-0" />
+                          <p><strong>Antrean Penuh.</strong> Freelancer ini sedang mengerjakan batas maksimal pesanannya. Silakan coba kembali nanti.</p>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3">
                         <button
                           onClick={handleChatSeller}
@@ -326,15 +338,15 @@ export function ServiceDetail() {
 
                         <button
                           onClick={handlePaymentNavigation}
-                          disabled={!selectedPackageId}
+                          disabled={!selectedPackageId || isSellerFull}
                           className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-xl text-white transition-all duration-200 ${
-                            selectedPackageId
-                              ? 'bg-gradient-to-r from-blue-600 to-purple-500 hover:shadow-lg hover:opacity-95 active:scale-95'
-                              : 'bg-slate-300 cursor-not-allowed'
+                            !selectedPackageId || isSellerFull
+                              ? 'bg-slate-300 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-blue-600 to-purple-500 hover:shadow-lg hover:opacity-95 active:scale-95'
                           }`}
                         >
                           <ShoppingCart className="w-5 h-5" />
-                          <span>Pesan Sekarang</span>
+                          <span>{isSellerFull ? 'Antrean Penuh' : 'Pesan Sekarang'}</span>
                         </button>
                       </div>
                     </div>
