@@ -482,3 +482,17 @@
 {"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-21T06:49:46.829Z"}
 {"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-21T06:50:02.231Z"}
 {"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-21T06:50:02.238Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-25T09:20:19.874Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-25T09:20:19.877Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-25T15:15:24.518Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-25T15:15:24.523Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-25T15:16:33.843Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-25T15:16:33.848Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-25T19:32:45.345Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-25T19:32:45.348Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-26T06:02:25.071Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-26T06:02:25.076Z"}
+{"level":"info","message":"Grafenda API server running on port 3000","service":"grafenda-backend","timestamp":"2026-05-26T06:41:54.866Z"}
+{"level":"info","message":"Socket.IO server running on port 5001","service":"grafenda-backend","timestamp":"2026-05-26T06:41:54.869Z"}
+{"level":"info","message":"SIGINT received, shutting down gracefully","service":"grafenda-backend","timestamp":"2026-05-26T06:58:37.483Z"}
+{"level":"info","message":"Process terminated","service":"grafenda-backend","timestamp":"2026-05-26T06:58:37.485Z"}
