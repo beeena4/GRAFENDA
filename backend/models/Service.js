@@ -258,7 +258,7 @@ class Service {
     };
 
     sql += `
-      GROUP BY s.id
+      GROUP BY s.id, c.name, sp.user_id, u.full_name, u.avatar, sp.rating
       ORDER BY ${sortOptions[filters.sort] || 's.created_at DESC'}
     `;
 

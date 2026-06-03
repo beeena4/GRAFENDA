@@ -113,11 +113,11 @@ export function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage, didAutoInitialMessage, order, user, messages.length]);
   const otherPartyAvatar = useMemo(() => {
-    const raw = currentUserId === order?.buyer_id ? order?.seller_avatar : order?.buyer_avatar;
+    const raw = Number(currentUserId) === Number(order?.buyer_id) ? order?.seller_avatar : order?.buyer_avatar;
     return resolveImageUrl(raw) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100';
   }, [currentUserId, order]);
 
-  const otherPartyName = currentUserId === order?.buyer_id ? order?.seller_name : order?.buyer_name;
+  const otherPartyName = Number(currentUserId) === Number(order?.buyer_id) ? order?.seller_name : order?.buyer_name;
 
   useEffect(() => {
     if (!id) return;
@@ -224,7 +224,7 @@ export function Chat() {
     if (!order || !user) return;
 
     const sellerUserId = order.seller_user_id ?? order.seller_id;
-    const receiverId = user.id === order.buyer_id ? sellerUserId : order.buyer_id;
+    const receiverId = Number(user.id) === Number(order.buyer_id) ? sellerUserId : order.buyer_id;
 
     if (!receiverId) {
       setError('Gagal mengirim pesan: ID penerima tidak valid');
@@ -320,7 +320,7 @@ export function Chat() {
   }
 
   const chatParticipant = {
-    name: currentUserId === order?.buyer_id ? order?.seller_name : order?.buyer_name || 'Penyedia Jasa',
+    name: Number(currentUserId) === Number(order?.buyer_id) ? order?.seller_name : order?.buyer_name || 'Penyedia Jasa',
     avatar: otherPartyAvatar,
     status: 'online',
   };
@@ -381,7 +381,7 @@ export function Chat() {
           )}
 
           {messages.map((msg) => {
-            const isOutgoing = msg.sender_id === currentUserId;
+            const isOutgoing = Number(msg.sender_id) === Number(currentUserId);
             const rawType = (msg.message_type || 'text') as 'text' | 'image' | 'file' | string;
             const fileUrl = resolveImageUrl(msg.file_url);
             const u = (msg.file_url || '').toString().toLowerCase();

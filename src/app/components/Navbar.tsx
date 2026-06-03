@@ -96,7 +96,7 @@ export function Navbar() {
     };
 
     fetchUnreadChats();
-    const interval = setInterval(fetchUnreadChats, 15000); // Sinkronisasi setiap 15 detik
+    const interval = setInterval(fetchUnreadChats, 5000); // Sinkronisasi setiap 5 detik
 
     return () => {
       isMounted = false;

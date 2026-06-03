@@ -42,7 +42,7 @@ class OrderController {
       const sellerProfile = await SellerProfile.findByUserId(service.seller_user_id);
       const limit_seller = sellerProfile?.max_concurrent_orders || 5;
 
-      const [orderCounts] = await pool.query(
+      const orderCounts = await pool.query(
         `SELECT COUNT(*) as totalActive FROM orders WHERE seller_id = ? AND status IN ('pending', 'accepted', 'process')`,
         [service.seller_id]
       );

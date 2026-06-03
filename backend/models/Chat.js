@@ -40,7 +40,7 @@ class Chat {
 
   static async getUnreadCount(userId) {
     const sql = `
-      SELECT COUNT(*) as unread_count 
+      SELECT COUNT(*)::integer as unread_count 
       FROM chats 
       WHERE receiver_id = ? AND is_read = false
     `;
@@ -50,7 +50,7 @@ class Chat {
 
   static async getChatOrders(userId) {
     const sql = `
-      SELECT DISTINCT o.id, o.title, o.status, o.created_at,
+      SELECT o.id, o.title, o.status, o.created_at,
              CASE 
                WHEN o.buyer_id = ? THEN u.full_name 
                ELSE b.full_name 
@@ -59,15 +59,15 @@ class Chat {
                WHEN o.buyer_id = ? THEN u.avatar 
                ELSE b.avatar 
              END as other_party_avatar,
-             (SELECT COUNT(*) FROM chats c WHERE c.order_id = o.id AND c.receiver_id = ? AND c.is_read = false) as unread_count,
+             (SELECT COUNT(*) FROM chats c WHERE c.order_id = o.id AND c.receiver_id = ? AND c.is_read = false)::integer as unread_count,
              (SELECT c.message FROM chats c WHERE c.order_id = o.id ORDER BY c.created_at DESC LIMIT 1) as last_message,
              (SELECT c.created_at FROM chats c WHERE c.order_id = o.id ORDER BY c.created_at DESC LIMIT 1) as last_message_time
       FROM orders o
       JOIN users b ON o.buyer_id = b.id
       JOIN seller_profiles sp ON o.seller_id = sp.id
       JOIN users u ON sp.user_id = u.id
-      WHERE (o.buyer_id = ? OR sp.user_id = ?) AND o.status IN ('paid', 'process', 'revision', 'completed', 'pending')
-      ORDER BY last_message_time DESC
+      WHERE (o.buyer_id = ? OR sp.user_id = ?) AND o.status IN ('paid', 'process', 'revision', 'completed', 'pending', 'accepted', 'cancelled')
+      ORDER BY last_message_time DESC NULLS LAST
     `;
     
     return await query(sql, [userId, userId, userId, userId, userId]);
@@ -76,8 +76,8 @@ class Chat {
   static async getChatStats(userId) {
     const sql = `
       SELECT 
-        COUNT(DISTINCT order_id) as total_chats,
-        SUM(CASE WHEN receiver_id = ? AND is_read = false THEN 1 ELSE 0 END) as unread_messages
+        COUNT(DISTINCT order_id)::integer as total_chats,
+        SUM(CASE WHEN receiver_id = ? AND is_read = false THEN 1 ELSE 0 END)::integer as unread_messages
       FROM chats
       WHERE sender_id = ? OR receiver_id = ?
     `;
