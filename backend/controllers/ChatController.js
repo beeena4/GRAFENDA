@@ -3,10 +3,7 @@ const Chat = require('../models/Chat');
 const ChatService = require('../services/ChatService');
 const Order = require('../models/Order');
 const { sendSuccess, sendError } = require('../utils/helpers');
-
-// 1. KONEKSI PINTAS KE SUPABASE CLOUD
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const { uploadChatFileToSupabase } = require('../utils/supabaseStorage');
 
 class ChatController {
   // Send message (DIPERBARUI UNTUK SUPABASE STORAGE)
@@ -42,24 +39,13 @@ class ChatController {
       let finalFileUrl = file_url; // Default ambil dari req.body jika berupa text string
       
       if (req.file) {
-        // Buat nama file unik khusus chat agar tidak bentrok
-        const fileName = `chat-${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
-
-        // Upload file dari buffer RAM ke Supabase Storage
-        const { error: uploadError } = await supabase.storage
-          .from('grafenda-bucket')
-          .upload(fileName, req.file.buffer, {
-            contentType: req.file.mimetype
-          });
-
-        if (uploadError) throw new Error("Gagal kirim lampiran chat ke cloud: " + uploadError.message);
-
-        // Dapatkan URL publik file dari Supabase Storage
-        const { data: urlData } = supabase.storage
-          .from('grafenda-bucket')
-          .getPublicUrl(fileName);
-
-        finalFileUrl = urlData.publicUrl;
+        try {
+          const { url } = await uploadChatFileToSupabase(req.file.buffer, req.file.originalname);
+          finalFileUrl = url;
+        } catch (uploadError) {
+          console.error('Upload lampiran chat gagal:', uploadError.message);
+          return sendError(res, `Gagal upload lampiran chat: ${uploadError.message}`, 500);
+        }
       }
 
       // DEBUG: lihat payload akhir yang akan dikirim ke service database

@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const ChatController = require('../controllers/ChatController');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadChatFile } = require('../middleware/upload');
+const { uploadChatFileToSupabase } = require('../utils/supabaseStorage');
 
 const router = express.Router();
 
@@ -35,8 +36,8 @@ router.get('/user/chats', ChatController.getUserChats);
 router.get('/stats', ChatController.getChatStats);
 router.put('/order/:orderId/read', ChatController.markAsRead);
 
-// File upload for chat
-router.post('/upload', uploadChatFile, (req, res) => {
+// File upload for chat (Endpoint terpisah jika frontend menggunakannya)
+router.post('/upload', uploadChatFile, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -44,15 +45,25 @@ router.post('/upload', uploadChatFile, (req, res) => {
     });
   }
 
-  res.json({
-    success: true,
-    message: 'File uploaded successfully',
-    data: {
-      file_url: `/uploads/chats/${req.file.filename}`,
-      file_name: req.file.originalname,
-      file_size: req.file.size
-    }
-  });
+  try {
+    const { url } = await uploadChatFileToSupabase(req.file.buffer, req.file.originalname);
+    
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      data: {
+        file_url: url,
+        file_name: req.file.originalname,
+        file_size: req.file.size
+      }
+    });
+  } catch (error) {
+    console.error('Upload lampiran chat gagal:', error.message);
+    res.status(500).json({
+      success: false,
+      message: `Gagal upload lampiran chat: ${error.message}`
+    });
+  }
 });
 
 module.exports = router;

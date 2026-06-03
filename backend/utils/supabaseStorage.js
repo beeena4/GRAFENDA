@@ -17,6 +17,7 @@ const BUCKETS = {
   AVATARS: 'avatars',
   SERVICES: 'services',
   ORDER_RESULTS: 'order-results',
+  CHAT_FILES: 'chat-files',
 };
 
 // ─── HELPER: request HTTPS ke Supabase Storage ───────────────────────────────
@@ -215,6 +216,16 @@ async function deleteOrderResultFromSupabase(fileUrl) {
   return deleteFromSupabase(fileUrl, BUCKETS.ORDER_RESULTS);
 }
 
+// ─── CHAT FILES ───────────────────────────────────────────────────────────────
+
+async function uploadChatFileToSupabase(fileBuffer, originalName) {
+  return uploadToSupabase(fileBuffer, originalName, BUCKETS.CHAT_FILES, 'chat');
+}
+
+async function deleteChatFileFromSupabase(fileUrl) {
+  return deleteFromSupabase(fileUrl, BUCKETS.CHAT_FILES);
+}
+
 // ─── ENSURE BUCKETS ───────────────────────────────────────────────────────────
 
 async function ensureAllBucketsExist() {
@@ -222,6 +233,7 @@ async function ensureAllBucketsExist() {
     await createBucketIfNotExists(BUCKETS.AVATARS, true, 5);
     await createBucketIfNotExists(BUCKETS.SERVICES, true, 10);
     await createBucketIfNotExists(BUCKETS.ORDER_RESULTS, true, 50);
+    await createBucketIfNotExists(BUCKETS.CHAT_FILES, true, 20);
   } catch (err) {
     console.warn('⚠️  Error saat setup bucket:', err.message);
   }
@@ -250,6 +262,8 @@ module.exports = {
   deleteServiceImageFromSupabase,
   uploadOrderResultToSupabase,
   deleteOrderResultFromSupabase,
+  uploadChatFileToSupabase,
+  deleteChatFileFromSupabase,
   ensureAllBucketsExist,
   ensureAvatarsBucketExists,
 };
