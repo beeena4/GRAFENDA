@@ -257,7 +257,13 @@ export function NewDashboardSeller() {
                 {order.result_image && (
                   <div className="mt-3 mb-2">
                     <img
-                      src={typeof order.result_image === 'string' && order.result_image.startsWith('/') ? `${API_BASE_URL}${order.result_image}` : order.result_image}
+                      src={
+                        typeof order.result_image === 'string' && order.result_image.startsWith('http')
+                          ? order.result_image  // Supabase public URL langsung
+                          : typeof order.result_image === 'string' && order.result_image.startsWith('/')
+                          ? `${API_BASE_URL.replace('/api', '')}${order.result_image}` // path lokal lama
+                          : order.result_image
+                      }
                       alt="Hasil Order"
                       className="w-36 h-24 object-cover rounded-md border border-slate-200"
                     />

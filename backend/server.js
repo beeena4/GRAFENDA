@@ -6,6 +6,7 @@ require('dotenv').config();
 const app = require('./app');
 const NotificationService = require('./services/NotificationService');
 const ChatService = require('./services/ChatService');
+const { ensureAvatarsBucketExists } = require('./utils/supabaseStorage');
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -105,9 +106,12 @@ process.on('unhandledRejection', (reason, promise) => {
 const PORT = process.env.PORT || 5000;
 const SOCKET_PORT = process.env.SOCKET_PORT || 5001;
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   logger.info(`Grafenda API server running on port ${PORT}`);
   logger.info(`Socket.IO server running on port ${SOCKET_PORT}`);
+
+  // Pastikan bucket Supabase Storage 'avatars' sudah ada
+  await ensureAvatarsBucketExists();
 });
 
 // Graceful shutdown

@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const AuthService = require('../services/AuthService');
 const { sendSuccess, sendError } = require('../utils/helpers');
+const { uploadAvatarToSupabase, deleteAvatarFromSupabase } = require('../utils/supabaseStorage');
 
 class AuthController {
   // Register user
@@ -106,8 +107,27 @@ class AuthController {
       const userId = req.user.id;
       const updateData = req.body;
 
+      // Upload avatar ke Supabase Storage jika ada file baru
       if (req.file) {
-        updateData.avatar = `/uploads/${req.file.filename}`;
+        try {
+          // Ambil avatar lama untuk dihapus setelah upload berhasil
+          const currentProfile = await AuthService.getProfile(userId);
+          const oldAvatarUrl = currentProfile?.avatar;
+
+          // Upload ke Supabase Storage
+          const { url } = await uploadAvatarToSupabase(
+            req.file.buffer,
+            req.file.originalname
+          );
+          updateData.avatar = url;
+
+          // Hapus avatar lama dari Supabase Storage (jika ada)
+          if (oldAvatarUrl) {
+            await deleteAvatarFromSupabase(oldAvatarUrl);
+          }
+        } catch (uploadError) {
+          return sendError(res, `Gagal mengupload foto profil: ${uploadError.message}`, 500);
+        }
       }
 
       const updatedProfile = await AuthService.updateProfile(userId, updateData);
