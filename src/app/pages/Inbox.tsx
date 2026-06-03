@@ -50,7 +50,7 @@ export function Inbox() {
     
     const interval = setInterval(() => {
       load(false);
-    }, 15000); // Polling setiap 15 detik di belakang layar
+    }, 5000); // Polling setiap 5 detik di belakang layar
 
     return () => {
       cancelled = true;

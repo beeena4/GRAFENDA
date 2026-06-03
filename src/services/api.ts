@@ -347,7 +347,7 @@ export const chatAPI = {
       chatAPI.getOrderMessages(orderId)
         .then(onSuccess)
         .catch(() => {});
-    }, 30000); // Update setiap 30 detik untuk chat
+    }, 3000); // Update setiap 3 detik untuk chat
 
     return () => clearInterval(interval);
   },
