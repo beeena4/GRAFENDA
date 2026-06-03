@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // API Base URL
-export const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/api';
+export const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || '/_/backend/api';
 export const API_ASSET_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 // Create axios instance
