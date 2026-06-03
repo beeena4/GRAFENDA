@@ -1,34 +1,15 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// SWITCH KE MEMORY STORAGE (Wajib agar Vercel tidak error EROFS)
+const storage = multer.memoryStorage();
 
-// Storage configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-// File filter
+// File filter (Tetap melonggarkan semua format sesuai request timmu)
 const fileFilter = (req, file, cb) => {
-  // Allowed file types (based on extension and/or mimetype)
-  // Requirement: “buat semua format bisa” => longgarkan filter jadi tidak memblok file.
-  // Tetap pertahankan batas ukuran dari multer.
   return cb(null, true);
 };
 
-// Upload middleware
+// Instance utama Multer menggunakan memory storage
 const upload = multer({
   storage: storage,
   limits: {
@@ -37,56 +18,13 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// Specific upload configurations
+// Konfigurasi spesifik (Variabel ekspor dipertahankan agar codingan Route tidak pecah)
 const uploadAvatar = upload.single('avatar');
 const uploadPortfolio = upload.array('portfolio', 10); // Max 10 files
 const uploadPaymentProof = upload.single('payment_proof');
-const uploadServiceImages = upload.array('images', 5); // Max 5 images for service
-
-// ===== CHAT FILES: simpan ke folder /uploads/chats supaya URL `/uploads/chats/...` valid =====
-const chatUploadDir = path.join(__dirname, '../uploads/chats');
-if (!fs.existsSync(chatUploadDir)) {
-  fs.mkdirSync(chatUploadDir, { recursive: true });
-}
-
-const chatStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, chatUploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const uploadChatFile = multer({
-  storage: chatStorage,
-  limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024,
-  },
-  fileFilter: fileFilter
-}).single('file');
-
-// ===== ORDER RESULTS FILES: simpan ke folder /uploads/results =====
-const resultUploadDir = path.join(__dirname, '../uploads/results');
-if (!fs.existsSync(resultUploadDir)) {
-  fs.mkdirSync(resultUploadDir, { recursive: true });
-}
-
-const resultStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, resultUploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'result-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const uploadOrderResult = multer({
-  storage: resultStorage,
-  fileFilter: fileFilter
-}).single('result_image');
+const uploadServiceImages = upload.array('images', 5); // Max 5 images
+const uploadChatFile = upload.single('file');
+const uploadOrderResult = upload.single('result_image');
 
 module.exports = {
   upload,
