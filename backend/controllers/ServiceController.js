@@ -8,9 +8,13 @@ const {
   getPaginationData
 } = require('../utils/helpers');
 
+// 1. KONEKSI PINTAS KE SUPABASE CLOUD
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
 class ServiceController {
 
-  // Get all services with search and filters
+  // Get all services with search and filters (TIDAK ADA PERUBAHAN)
   static async getServices(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -40,7 +44,7 @@ class ServiceController {
     }
   }
 
-  // Get service details
+  // Get service details (TIDAK ADA PERUBAHAN)
   static async getServiceById(req, res) {
     try {
       const { id } = req.params;
@@ -55,9 +59,7 @@ class ServiceController {
         );
       }
 
-      // Get packages
-      const packages =
-        await ServicePackage.findByServiceId(id);
+      const packages = await ServicePackage.findByServiceId(id);
 
       const response = {
         ...service,
@@ -75,14 +77,11 @@ class ServiceController {
     }
   }
 
-  // Get featured services
+  // Get featured services (TIDAK ADA PERUBAHAN)
   static async getFeaturedServices(req, res) {
     try {
-      const limit =
-        parseInt(req.query.limit) || 10;
-
-      const services =
-        await Service.getFeatured(limit);
+      const limit = parseInt(req.query.limit) || 10;
+      const services = await Service.getFeatured(limit);
 
       sendSuccess(
         res,
@@ -95,46 +94,24 @@ class ServiceController {
     }
   }
 
-  // Create service
+  // Create service (DIPERBARUI UNTUK SUPABASE)
   static async createService(req, res) {
     try {
-
-      // Validation
       const errors = validationResult(req);
-
       if (!errors.isEmpty()) {
-        return sendError(
-          res,
-          'Validation failed',
-          400,
-          errors.array()
-        );
+        return sendError(res, 'Validation failed', 400, errors.array());
       }
 
-      // Seller profile
-      const sellerProfile =
-        req.user.role === 'seller'
-          ? await require('../models/SellerProfile')
-              .findByUserId(req.user.id)
-          : null;
+      const sellerProfile = req.user.role === 'seller'
+        ? await require('../models/SellerProfile').findByUserId(req.user.id)
+        : null;
 
       const sellerId = sellerProfile?.id;
-
       if (!sellerId) {
-        return sendError(
-          res,
-          'Seller profile not found',
-          404
-        );
+        return sendError(res, 'Seller profile not found', 404);
       }
 
-      const {
-        category_id,
-        title,
-        description,
-        tags,
-        packages
-      } = req.body;
+      const { category_id, title, description, tags, packages } = req.body;
 
       let parsedPackages = [];
       if (typeof packages === 'string') {
@@ -148,23 +125,36 @@ class ServiceController {
         parsedPackages = packages;
       }
 
+      // PROSES KIRIM GAMBAR LAYANAN KE SUPABASE STORAGE
       let imageUrl = null;
       if (req.files && req.files.length > 0) {
-        imageUrl = `/uploads/${req.files[0].filename}`;
+        const file = req.files[0];
+        const fileName = `service-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('grafenda-bucket')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype
+          });
+
+        if (uploadError) throw new Error("Gagal upload gambar layanan ke cloud: " + uploadError.message);
+
+        const { data: urlData } = supabase.storage
+          .from('grafenda-bucket')
+          .getPublicUrl(fileName);
+
+        imageUrl = urlData.publicUrl;
       }
 
-      // Create service
-      const serviceId =
-        await Service.create({
-          seller_id: sellerId,
-          category_id,
-          title,
-          description,
-          tags,
-          image_url: imageUrl
-        });
+      const serviceId = await Service.create({
+        seller_id: sellerId,
+        category_id,
+        title,
+        description,
+        tags,
+        image_url: imageUrl
+      });
 
-      // Create packages
       if (Array.isArray(parsedPackages) && parsedPackages.length > 0) {
         for (const pkg of parsedPackages) {
           await ServicePackage.create({
@@ -174,91 +164,46 @@ class ServiceController {
         }
       }
 
-      const service =
-        await Service.findById(serviceId);
-
-      const servicePackages =
-        await ServicePackage.findByServiceId(
-          serviceId
-        );
+      const service = await Service.findById(serviceId);
+      const servicePackages = await ServicePackage.findByServiceId(serviceId);
 
       sendSuccess(
         res,
         'Service created successfully',
-        {
-          ...service,
-          packages: servicePackages
-        },
+        { ...service, packages: servicePackages },
         201
       );
 
     } catch (error) {
-
-      console.error(
-        'CREATE SERVICE ERROR:',
-        error
-      );
-
-      sendError(
-        res,
-        error.message || 'Internal server error',
-        500
-      );
+      console.error('CREATE SERVICE ERROR:', error);
+      sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Update service
+  // Update service (DIPERBARUI UNTUK SUPABASE)
   static async updateService(req, res) {
     try {
-
-      // Validation
       const errors = validationResult(req);
-
       if (!errors.isEmpty()) {
-        return sendError(
-          res,
-          'Validation failed',
-          400,
-          errors.array()
-        );
+        return sendError(res, 'Validation failed', 400, errors.array());
       }
 
       const { id } = req.params;
 
-      // Seller profile
-      const sellerProfile =
-        req.user.role === 'seller'
-          ? await require('../models/SellerProfile')
-              .findByUserId(req.user.id)
-          : null;
+      const sellerProfile = req.user.role === 'seller'
+        ? await require('../models/SellerProfile').findByUserId(req.user.id)
+        : null;
 
       const sellerId = sellerProfile?.id;
-
       if (!sellerId) {
-        return sendError(
-          res,
-          'Seller profile not found',
-          404
-        );
+        return sendError(res, 'Seller profile not found', 404);
       }
 
-      // Check ownership
-      const service =
-        await Service.findByIdAny(id);
-
-
-      if (
-        !service ||
-        service.seller_id !== sellerId
-      ) {
-        return sendError(
-          res,
-          'Service not found or access denied',
-          404
-        );
+      const service = await Service.findByIdAny(id);
+      if (!service || service.seller_id !== sellerId) {
+        return sendError(res, 'Service not found or access denied', 404);
       }
 
-      // Frontend data
       const updateData = { ...req.body };
       if (typeof updateData.packages === 'string') {
         try {
@@ -271,25 +216,32 @@ class ServiceController {
         updateData.packages = updateData.packages || [];
       }
 
+      // PROSES PERBARUI GAMBAR LAYANAN DI CLOUD
       if (req.files && req.files.length > 0) {
-        updateData.image_url = `/uploads/${req.files[0].filename}`;
+        const file = req.files[0];
+        const fileName = `service-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('grafenda-bucket')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype
+          });
+
+        if (uploadError) throw new Error("Gagal update gambar layanan ke cloud: " + uploadError.message);
+
+        const { data: urlData } = supabase.storage
+          .from('grafenda-bucket')
+          .getPublicUrl(fileName);
+
+        updateData.image_url = urlData.publicUrl;
       }
 
-      console.log(
-        'REQ BODY UPDATE:',
-        updateData
-      );
+      console.log('REQ BODY UPDATE:', updateData);
 
-      // Update
       await Service.update(id, updateData);
 
-      // Update packages jika ada
       if (Array.isArray(updateData.packages) && updateData.packages.length > 0) {
-
-        // Hapus package lama
         await ServicePackage.deleteByServiceId(id);
-
-        // Insert package baru
         for (const pkg of updateData.packages) {
           await ServicePackage.create({
             service_id: id,
@@ -298,122 +250,69 @@ class ServiceController {
         }
       }
 
-      // Get updated service
-      const updatedService =
-        await Service.findById(id);
-
-      sendSuccess(
-        res,
-        'Service updated successfully',
-        updatedService
-      );
+      const updatedService = await Service.findById(id);
+      sendSuccess(res, 'Service updated successfully', updatedService);
 
     } catch (error) {
-
-      console.error(
-        'UPDATE SERVICE ERROR:',
-        error
-      );
-
-      sendError(
-        res,
-        error.message || 'Internal server error',
-        500
-      );
+      console.error('UPDATE SERVICE ERROR:', error);
+      sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Delete service
+  // Delete service (DIPERBARUI UNTUK MEMBERSIHKAN FOTO DI CLOUD)
   static async deleteService(req, res) {
     try {
-
       const { id } = req.params;
 
-      const sellerProfile =
-        req.user.role === 'seller'
-          ? await require('../models/SellerProfile')
-              .findByUserId(req.user.id)
-          : null;
+      const sellerProfile = req.user.role === 'seller'
+        ? await require('../models/SellerProfile').findByUserId(req.user.id)
+        : null;
 
       const sellerId = sellerProfile?.id;
-
       if (!sellerId) {
-        return sendError(
-          res,
-          'Seller profile not found',
-          404
-        );
+        return sendError(res, 'Seller profile not found', 404);
       }
 
-      // Check ownership
-      const service =
-        await Service.findById(id);
+      const service = await Service.findById(id);
+      if (!service || service.seller_id !== sellerId) {
+        return sendError(res, 'Service not found or access denied', 404);
+      }
 
-      if (
-        !service ||
-        service.seller_id !== sellerId
-      ) {
-        return sendError(
-          res,
-          'Service not found or access denied',
-          404
-        );
+      // HAPUS FILE FISIK DI SUPABASE STORAGE JIKA ADA LINK CLOUD-NYA
+      if (service.image_url && service.image_url.includes('supabase.co')) {
+        const urlParts = service.image_url.split('/');
+        const fileNameToHapus = urlParts[urlParts.length - 1];
+        
+        await supabase.storage
+          .from('grafenda-bucket')
+          .remove([fileNameToHapus]);
       }
 
       await Service.delete(id);
-
-      sendSuccess(
-        res,
-        'Service deleted successfully'
-      );
+      sendSuccess(res, 'Service deleted successfully');
 
     } catch (error) {
-
-      console.error(
-        'DELETE SERVICE ERROR:',
-        error
-      );
-
-      sendError(
-        res,
-        error.message || 'Internal server error',
-        500
-      );
+      console.error('DELETE SERVICE ERROR:', error);
+      sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Get seller services
+  // Get seller services (TIDAK ADA PERUBAHAN)
   static async getSellerServices(req, res) {
     try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
 
-      const page =
-        parseInt(req.query.page) || 1;
-
-      const limit =
-        parseInt(req.query.limit) || 10;
-
-      const sellerProfile =
-        req.user.role === 'seller'
-          ? await require('../models/SellerProfile')
-              .findByUserId(req.user.id)
-          : null;
+      const sellerProfile = req.user.role === 'seller'
+        ? await require('../models/SellerProfile').findByUserId(req.user.id)
+        : null;
 
       const sellerId = sellerProfile?.id;
-
       if (!sellerId) {
-        return sendError(
-          res,
-          'Seller profile not found',
-          404
-        );
+        return sendError(res, 'Seller profile not found', 404);
       }
 
-      const result =
-        await Service.findBySellerId(
-          sellerId,
-          page,
-          limit
-        );
+      const result = await Service.findBySellerId(sellerId, page, limit);
 
       const response = {
         services: result.services,
@@ -424,82 +323,62 @@ class ServiceController {
         )
       };
 
-      sendSuccess(
-        res,
-        'Seller services retrieved successfully',
-        response
-      );
+      sendSuccess(res, 'Seller services retrieved successfully', response);
 
     } catch (error) {
-
-      console.error(
-        'GET SELLER SERVICES ERROR:',
-        error
-      );
-
-      sendError(
-        res,
-        error.message || 'Internal server error',
-        500
-      );
+      console.error('GET SELLER SERVICES ERROR:', error);
+      sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Upload or replace service image
+  // Upload or replace service image SPECIFIC (DIPERBARUI UNTUK SUPABASE)
   static async uploadServiceImage(req, res) {
     try {
       const { id } = req.params;
 
-      const sellerProfile =
-        req.user.role === 'seller'
-          ? await require('../models/SellerProfile')
-              .findByUserId(req.user.id)
-          : null;
+      const sellerProfile = req.user.role === 'seller'
+        ? await require('../models/SellerProfile').findByUserId(req.user.id)
+        : null;
 
       const sellerId = sellerProfile?.id;
-
       if (!sellerId) {
-        return sendError(
-          res,
-          'Seller profile not found',
-          404
-        );
+        return sendError(res, 'Seller profile not found', 404);
       }
 
       const service = await Service.findByIdAny(id);
       if (!service || service.seller_id !== sellerId) {
-        return sendError(
-          res,
-          'Service not found or access denied',
-          404
-        );
+        return sendError(res, 'Service not found or access denied', 404);
       }
 
       if (!req.files || req.files.length === 0) {
-        return sendError(
-          res,
-          'No image uploaded',
-          400
-        );
+        return sendError(res, 'No image uploaded', 400);
       }
 
-      const imageUrl = `/uploads/${req.files[0].filename}`;
+      // UPLOAD KE CLOUD MENGGUNAKAN BUFFER MEMORI
+      const file = req.files[0];
+      const fileName = `service-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('grafenda-bucket')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype
+        });
+
+      if (uploadError) throw new Error("Gagal upload gambar ke cloud: " + uploadError.message);
+
+      const { data: urlData } = supabase.storage
+        .from('grafenda-bucket')
+        .getPublicUrl(fileName);
+
+      const imageUrl = urlData.publicUrl;
       await Service.updateImage(id, imageUrl);
 
       const updatedService = await Service.findById(id);
 
-      sendSuccess(
-        res,
-        'Service image uploaded successfully',
-        updatedService
-      );
+      sendSuccess(res, 'Service image uploaded successfully', updatedService);
     } catch (error) {
       console.error('UPLOAD SERVICE IMAGE ERROR:', error);
-      sendError(
-        res,
-        error.message || 'Internal server error',
-        500
-      );
+      sendError(res, error.message || 'Internal server error', 500);
     }
   }
 }

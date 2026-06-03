@@ -4,6 +4,10 @@ const SellerProfile = require('../models/SellerProfile');
 const Portfolio = require('../models/Portfolio');
 const { sendSuccess, sendError } = require('../utils/helpers');
 
+// 1. IMPORT & INISIALISASI SUPABASE DI PALING ATAS
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
 class ProfileController {
   // Get user profile
   static async getProfile(req, res) {
@@ -33,7 +37,7 @@ class ProfileController {
     }
   }
 
-  // Update user profile
+  // Update user profile (DIPERBARUI UNTUK SUPABASE)
   static async updateProfile(req, res) {
     try {
       const errors = validationResult(req);
@@ -42,13 +46,37 @@ class ProfileController {
       }
 
       const userId = req.user.id;
-      const { name, email, phone, avatar } = req.body;
+      const { name, email, phone } = req.body;
+      let avatar = req.body.avatar; // Default ambil dari text jika ada
 
       if (email) {
         const existingUser = await User.findByEmail(email);
         if (existingUser && existingUser.id !== userId) {
           return sendError(res, 'Email already in use', 400);
         }
+      }
+
+      // PROSES UPLOAD AVATAR KE SUPABASE JIKA ADA FILE BARU DI RAM
+      if (req.file) {
+        // Buat nama unik tanpa spasi
+        const fileName = `avatar-${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
+        
+        // Kirim ke cloud
+        const { error: uploadError } = await supabase.storage
+          .from('grafenda-bucket')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype
+          });
+
+        if (uploadError) throw new Error("Gagal upload avatar ke cloud: " + uploadError.message);
+
+        // Ambil link publik
+        const { data: urlData } = supabase.storage
+          .from('grafenda-bucket')
+          .getPublicUrl(fileName);
+
+        // Ganti nilai variabel avatar dengan link cloud
+        avatar = urlData.publicUrl; 
       }
 
       await User.update(userId, { name, email, phone, avatar });
@@ -62,7 +90,7 @@ class ProfileController {
     }
   }
 
-  // Update seller profile
+  // Update seller profile (TIDAK ADA PERUBAHAN)
   static async updateSellerProfile(req, res) {
     try {
       const errors = validationResult(req);
@@ -78,18 +106,10 @@ class ProfileController {
       }
 
       const {
-        bio,
-        skills,
-        portfolio_url,
-        location,
-        social_links,
-        experience_years,
-        education,
-        certifications,
-        max_concurrent_orders
+        bio, skills, portfolio_url, location, social_links,
+        experience_years, education, certifications, max_concurrent_orders
       } = req.body;
 
-      // Normalize skills: terima string atau array
       const normalizeSkills = (val) => {
         if (val === undefined || val === null) return null;
         if (Array.isArray(val)) {
@@ -102,27 +122,17 @@ class ProfileController {
 
       if (!sellerProfile) {
         const sellerProfileId = await SellerProfile.create({
-          user_id: userId,
-          bio,
-          skills: normalizeSkills(skills) || '[]',
-          portfolio_url,
-          location,
-          social_links: JSON.stringify(social_links || {}),
-          experience_years,
-          education: JSON.stringify(education || []),
-          certifications: JSON.stringify(certifications || []),
+          user_id: userId, bio, skills: normalizeSkills(skills) || '[]', portfolio_url, location,
+          social_links: JSON.stringify(social_links || {}), experience_years,
+          education: JSON.stringify(education || []), certifications: JSON.stringify(certifications || []),
           max_concurrent_orders: max_concurrent_orders !== undefined ? max_concurrent_orders : 5
         });
         sellerProfile = await SellerProfile.findById(sellerProfileId);
       } else {
         await SellerProfile.update(sellerProfile.id, {
-          bio,
-          skills: normalizeSkills(skills) || sellerProfile.skills,
-          portfolio_url,
-          location,
+          bio, skills: normalizeSkills(skills) || sellerProfile.skills, portfolio_url, location,
           social_links: social_links ? JSON.stringify(social_links) : sellerProfile.social_links,
-          experience_years,
-          education: education ? JSON.stringify(education) : sellerProfile.education,
+          experience_years, education: education ? JSON.stringify(education) : sellerProfile.education,
           certifications: certifications ? JSON.stringify(certifications) : sellerProfile.certifications,
           max_concurrent_orders: max_concurrent_orders !== undefined ? max_concurrent_orders : sellerProfile.max_concurrent_orders
         });
@@ -135,7 +145,7 @@ class ProfileController {
     }
   }
 
-  // Add seller portfolio entry
+  // Add seller portfolio entry (DIPERBARUI UNTUK SUPABASE)
   static async addSellerPortfolio(req, res) {
     try {
       const userId = req.user.id;
@@ -158,8 +168,27 @@ class ProfileController {
       }
 
       const createdPortfolios = [];
+      
+      // PERULANGAN UPLOAD KE SUPABASE
       for (const file of req.files) {
-        const imageUrl = `/uploads/${file.filename}`;
+        const fileName = `portfolio-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
+
+        // Upload Buffer RAM ke Storage Cloud
+        const { error: uploadError } = await supabase.storage
+          .from('grafenda-bucket')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype
+          });
+
+        if (uploadError) throw new Error("Gagal upload portofolio ke cloud: " + uploadError.message);
+
+        // Minta link publik dari Cloud
+        const { data: urlData } = supabase.storage
+          .from('grafenda-bucket')
+          .getPublicUrl(fileName);
+
+        const imageUrl = urlData.publicUrl; // Ini yang disimpan ke Database
+
         const portfolioId = await Portfolio.create({
           seller_id: sellerProfile.id,
           title: title.trim(),
@@ -169,13 +198,9 @@ class ProfileController {
         });
 
         const portfolioItem = {
-          id: portfolioId,
-          seller_id: sellerProfile.id,
-          title: title.trim(),
-          description: description || null,
-          image_url: imageUrl,
-          project_url: project_url || null,
-          created_at: new Date().toISOString()
+          id: portfolioId, seller_id: sellerProfile.id, title: title.trim(),
+          description: description || null, image_url: imageUrl,
+          project_url: project_url || null, created_at: new Date().toISOString()
         };
         createdPortfolios.push(portfolioItem);
       }
@@ -186,6 +211,7 @@ class ProfileController {
     }
   }
 
+  // Delete Seller Portfolio (DIPERBARUI UNTUK SUPABASE)
   static async deleteSellerPortfolio(req, res) {
     try {
       const userId = req.user.id;
@@ -209,14 +235,14 @@ class ProfileController {
         return sendError(res, 'Portofolio tidak ditemukan atau tidak dapat dihapus', 404);
       }
 
-      const fs = require('fs');
-      const path = require('path');
-      if (portfolioItem.image_url) {
-        const filename = portfolioItem.image_url.replace(/^\/uploads\//, '');
-        const filePath = path.join(__dirname, '../uploads', filename);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+      // HAPUS FILE FISIK DI SUPABASE STORAGE (Bukan dari Vercel/Localhost)
+      if (portfolioItem.image_url && portfolioItem.image_url.includes('supabase.co')) {
+        const urlParts = portfolioItem.image_url.split('/');
+        const fileNameToHapus = urlParts[urlParts.length - 1]; // Ambil nama file asli di ujung link
+        
+        await supabase.storage
+          .from('grafenda-bucket')
+          .remove([fileNameToHapus]);
       }
 
       sendSuccess(res, 'Portofolio berhasil dihapus');
@@ -225,7 +251,7 @@ class ProfileController {
     }
   }
 
-  // Get seller profile by user ID
+  // Get seller profile by user ID (TIDAK ADA PERUBAHAN)
   static async getSellerProfile(req, res) {
     try {
       const { user_id } = req.params;
@@ -250,23 +276,13 @@ class ProfileController {
           if (Array.isArray(parsed)) {
             return parsed.filter(Boolean).join(', ');
           }
-        } catch (err) {
-          // not JSON, continue
-        }
+        } catch (err) {}
         return String(value);
       };
 
       const response = {
-        user: {
-          id: user.id,
-          name: user.name,
-          avatar: user.avatar,
-          created_at: user.created_at
-        },
-        seller_profile: {
-          ...sellerProfile,
-          skills: parseSkills(sellerProfile.skills)
-        },
+        user: { id: user.id, name: user.name, avatar: user.avatar, created_at: user.created_at },
+        seller_profile: { ...sellerProfile, skills: parseSkills(sellerProfile.skills) },
         stats
       };
 
@@ -276,7 +292,7 @@ class ProfileController {
     }
   }
 
-  // Get seller portfolio
+  // Get seller portfolio (TIDAK ADA PERUBAHAN)
   static async getSellerPortfolio(req, res) {
     try {
       const { user_id } = req.params;
