@@ -7,14 +7,14 @@ const {
   buildSearchFilters,
   getPaginationData
 } = require('../utils/helpers');
-
-// 1. KONEKSI PINTAS KE SUPABASE CLOUD
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const {
+  uploadMultipleServiceImages,
+  deleteServiceImageFromSupabase,
+} = require('../utils/supabaseStorage');
 
 class ServiceController {
 
-  // Get all services with search and filters (TIDAK ADA PERUBAHAN)
+  // Get all services with search and filters
   static async getServices(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -25,76 +25,45 @@ class ServiceController {
 
       const response = {
         services: result.services,
-        pagination: getPaginationData(
-          page,
-          limit,
-          result.pagination.total
-        ),
+        pagination: getPaginationData(page, limit, result.pagination.total),
         filters
       };
 
-      sendSuccess(
-        res,
-        'Services retrieved successfully',
-        response
-      );
-
+      sendSuccess(res, 'Services retrieved successfully', response);
     } catch (error) {
       sendError(res, error.message, 500);
     }
   }
 
-  // Get service details (TIDAK ADA PERUBAHAN)
+  // Get service details
   static async getServiceById(req, res) {
     try {
       const { id } = req.params;
-
       const service = await Service.findById(id);
 
       if (!service) {
-        return sendError(
-          res,
-          'Service not found',
-          404
-        );
+        return sendError(res, 'Service not found', 404);
       }
 
       const packages = await ServicePackage.findByServiceId(id);
-
-      const response = {
-        ...service,
-        packages
-      };
-
-      sendSuccess(
-        res,
-        'Service details retrieved successfully',
-        response
-      );
-
+      sendSuccess(res, 'Service details retrieved successfully', { ...service, packages });
     } catch (error) {
       sendError(res, error.message, 500);
     }
   }
 
-  // Get featured services (TIDAK ADA PERUBAHAN)
+  // Get featured services
   static async getFeaturedServices(req, res) {
     try {
       const limit = parseInt(req.query.limit) || 10;
       const services = await Service.getFeatured(limit);
-
-      sendSuccess(
-        res,
-        'Featured services retrieved successfully',
-        services
-      );
-
+      sendSuccess(res, 'Featured services retrieved successfully', services);
     } catch (error) {
       sendError(res, error.message, 500);
     }
   }
 
-  // Create service (DIPERBARUI UNTUK SUPABASE)
+  // Create service
   static async createService(req, res) {
     try {
       const errors = validationResult(req);
@@ -125,25 +94,16 @@ class ServiceController {
         parsedPackages = packages;
       }
 
-      // PROSES KIRIM GAMBAR LAYANAN KE SUPABASE STORAGE
+      // Upload gambar jasa ke Supabase Storage bucket 'services'
       let imageUrl = null;
       if (req.files && req.files.length > 0) {
-        const file = req.files[0];
-        const fileName = `service-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('grafenda-bucket')
-          .upload(fileName, file.buffer, {
-            contentType: file.mimetype
-          });
-
-        if (uploadError) throw new Error("Gagal upload gambar layanan ke cloud: " + uploadError.message);
-
-        const { data: urlData } = supabase.storage
-          .from('grafenda-bucket')
-          .getPublicUrl(fileName);
-
-        imageUrl = urlData.publicUrl;
+        try {
+          const urls = await uploadMultipleServiceImages(req.files);
+          imageUrl = urls[0] || null; // simpan URL gambar pertama sebagai thumbnail
+        } catch (uploadError) {
+          console.error('Upload gambar jasa gagal:', uploadError.message);
+          return sendError(res, `Gagal upload gambar jasa: ${uploadError.message}`, 500);
+        }
       }
 
       const serviceId = await Service.create({
@@ -157,30 +117,21 @@ class ServiceController {
 
       if (Array.isArray(parsedPackages) && parsedPackages.length > 0) {
         for (const pkg of parsedPackages) {
-          await ServicePackage.create({
-            service_id: serviceId,
-            ...pkg
-          });
+          await ServicePackage.create({ service_id: serviceId, ...pkg });
         }
       }
 
       const service = await Service.findById(serviceId);
       const servicePackages = await ServicePackage.findByServiceId(serviceId);
 
-      sendSuccess(
-        res,
-        'Service created successfully',
-        { ...service, packages: servicePackages },
-        201
-      );
-
+      sendSuccess(res, 'Service created successfully', { ...service, packages: servicePackages }, 201);
     } catch (error) {
       console.error('CREATE SERVICE ERROR:', error);
       sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Update service (DIPERBARUI UNTUK SUPABASE)
+  // Update service
   static async updateService(req, res) {
     try {
       const errors = validationResult(req);
@@ -208,58 +159,48 @@ class ServiceController {
       if (typeof updateData.packages === 'string') {
         try {
           updateData.packages = updateData.packages ? JSON.parse(updateData.packages) : [];
-        } catch (parseError) {
-          console.warn('UPDATE SERVICE: Failed to parse packages JSON', parseError);
+        } catch {
           updateData.packages = [];
         }
       } else if (!Array.isArray(updateData.packages)) {
         updateData.packages = updateData.packages || [];
       }
 
-      // PROSES PERBARUI GAMBAR LAYANAN DI CLOUD
+      // Upload gambar baru jika ada, hapus gambar lama dari Supabase
       if (req.files && req.files.length > 0) {
-        const file = req.files[0];
-        const fileName = `service-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('grafenda-bucket')
-          .upload(fileName, file.buffer, {
-            contentType: file.mimetype
-          });
+        try {
+          // Hapus gambar lama dari Supabase Storage
+          if (service.image_url) {
+            await deleteServiceImageFromSupabase(service.image_url);
+          }
 
-        if (uploadError) throw new Error("Gagal update gambar layanan ke cloud: " + uploadError.message);
-
-        const { data: urlData } = supabase.storage
-          .from('grafenda-bucket')
-          .getPublicUrl(fileName);
-
-        updateData.image_url = urlData.publicUrl;
+          // Upload gambar baru
+          const urls = await uploadMultipleServiceImages(req.files);
+          updateData.image_url = urls[0] || service.image_url;
+        } catch (uploadError) {
+          console.error('Update gambar jasa gagal:', uploadError.message);
+          return sendError(res, `Gagal update gambar jasa: ${uploadError.message}`, 500);
+        }
       }
-
-      console.log('REQ BODY UPDATE:', updateData);
 
       await Service.update(id, updateData);
 
       if (Array.isArray(updateData.packages) && updateData.packages.length > 0) {
         await ServicePackage.deleteByServiceId(id);
         for (const pkg of updateData.packages) {
-          await ServicePackage.create({
-            service_id: id,
-            ...pkg
-          });
+          await ServicePackage.create({ service_id: id, ...pkg });
         }
       }
 
       const updatedService = await Service.findById(id);
       sendSuccess(res, 'Service updated successfully', updatedService);
-
     } catch (error) {
       console.error('UPDATE SERVICE ERROR:', error);
       sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Delete service (DIPERBARUI UNTUK MEMBERSIHKAN FOTO DI CLOUD)
+  // Delete service
   static async deleteService(req, res) {
     try {
       const { id } = req.params;
@@ -278,26 +219,20 @@ class ServiceController {
         return sendError(res, 'Service not found or access denied', 404);
       }
 
-      // HAPUS FILE FISIK DI SUPABASE STORAGE JIKA ADA LINK CLOUD-NYA
-      if (service.image_url && service.image_url.includes('supabase.co')) {
-        const urlParts = service.image_url.split('/');
-        const fileNameToHapus = urlParts[urlParts.length - 1];
-        
-        await supabase.storage
-          .from('grafenda-bucket')
-          .remove([fileNameToHapus]);
+      // Hapus gambar dari Supabase Storage jika ada
+      if (service.image_url) {
+        await deleteServiceImageFromSupabase(service.image_url);
       }
 
       await Service.delete(id);
       sendSuccess(res, 'Service deleted successfully');
-
     } catch (error) {
       console.error('DELETE SERVICE ERROR:', error);
       sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Get seller services (TIDAK ADA PERUBAHAN)
+  // Get seller services
   static async getSellerServices(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -314,24 +249,17 @@ class ServiceController {
 
       const result = await Service.findBySellerId(sellerId, page, limit);
 
-      const response = {
+      sendSuccess(res, 'Seller services retrieved successfully', {
         services: result.services,
-        pagination: getPaginationData(
-          page,
-          limit,
-          result.pagination.total
-        )
-      };
-
-      sendSuccess(res, 'Seller services retrieved successfully', response);
-
+        pagination: getPaginationData(page, limit, result.pagination.total)
+      });
     } catch (error) {
       console.error('GET SELLER SERVICES ERROR:', error);
       sendError(res, error.message || 'Internal server error', 500);
     }
   }
 
-  // Upload or replace service image SPECIFIC (DIPERBARUI UNTUK SUPABASE)
+  // Upload / replace service image
   static async uploadServiceImage(req, res) {
     try {
       const { id } = req.params;
@@ -354,25 +282,16 @@ class ServiceController {
         return sendError(res, 'No image uploaded', 400);
       }
 
-      // UPLOAD KE CLOUD MENGGUNAKAN BUFFER MEMORI
-      const file = req.files[0];
-      const fileName = `service-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('grafenda-bucket')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype
-        });
+      // Hapus gambar lama
+      if (service.image_url) {
+        await deleteServiceImageFromSupabase(service.image_url);
+      }
 
-      if (uploadError) throw new Error("Gagal upload gambar ke cloud: " + uploadError.message);
+      // Upload gambar baru ke Supabase Storage
+      const urls = await uploadMultipleServiceImages(req.files);
+      const imageUrl = urls[0];
 
-      const { data: urlData } = supabase.storage
-        .from('grafenda-bucket')
-        .getPublicUrl(fileName);
-
-      const imageUrl = urlData.publicUrl;
       await Service.updateImage(id, imageUrl);
-
       const updatedService = await Service.findById(id);
 
       sendSuccess(res, 'Service image uploaded successfully', updatedService);

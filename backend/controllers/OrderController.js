@@ -4,6 +4,7 @@ const Payment = require('../models/Payment');
 const NotificationService = require('../services/NotificationService');
 const { sendSuccess, sendError, getPaginationData } = require('../utils/helpers');
 const pool = require('../config/database');
+const { uploadOrderResultToSupabase, deleteOrderResultFromSupabase } = require('../utils/supabaseStorage');
 
 class OrderController {
   // Create order
@@ -181,7 +182,7 @@ class OrderController {
     }
   }
 
-  // Upload result image
+  // Upload result image — disimpan ke Supabase Storage bucket 'order-results'
   static async uploadOrderResult(req, res) {
     try {
       const { id } = req.params;
@@ -203,11 +204,29 @@ class OrderController {
 
       const allowedStatuses = ['paid', 'process', 'revision'];
       if (!allowedStatuses.includes(order.status)) {
-        return sendError(res, 'Order tidak dapat diunggah hasilnya', 400);
+        return sendError(res, 'Order tidak dapat diunggah hasilnya pada status ini', 400);
       }
 
-      // Path disesuaikan dengan folder tujuan Multer
-      const resultImageUrl = `/uploads/results/${req.file.filename}`;
+      // Hapus hasil lama dari Supabase jika ada
+      if (order.result_image) {
+        await deleteOrderResultFromSupabase(order.result_image);
+      }
+
+      // Upload file hasil ke Supabase Storage
+      let resultImageUrl;
+      try {
+        const { url } = await uploadOrderResultToSupabase(
+          req.file.buffer,
+          req.file.originalname,
+          id
+        );
+        resultImageUrl = url;
+      } catch (uploadError) {
+        console.error('Upload hasil order gagal:', uploadError.message);
+        return sendError(res, `Gagal upload hasil order: ${uploadError.message}`, 500);
+      }
+
+      // Simpan URL Supabase ke database dan update status ke completed
       await Order.updateResultImage(id, resultImageUrl);
       await Order.updateStatus(id, 'completed', userId);
 

@@ -105,8 +105,14 @@ export function OrderDetail() {
 
   const handleDownloadResult = async (url: string, filename: string) => {
     try {
-      const fullUrl = url.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}` : url;
+      // Jika URL sudah lengkap (Supabase public URL), langsung fetch
+      // Jika masih path lokal (/uploads/...), tambahkan base URL backend
+      const fullUrl = url.startsWith('http')
+        ? url
+        : `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}`;
+
       const response = await fetch(fullUrl);
+      if (!response.ok) throw new Error('Gagal mengunduh file');
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -118,7 +124,11 @@ export function OrderDetail() {
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error('Gagal mengunduh file:', err);
-      window.open(url.startsWith('/') ? `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}` : url, '_blank');
+      // Fallback: buka di tab baru
+      const fullUrl = url.startsWith('http')
+        ? url
+        : `${(import.meta.env.VITE_API_URL as string)?.replace(/\/api$/, '') || 'http://localhost:3000'}${url}`;
+      window.open(fullUrl, '_blank');
     }
   };
 
