@@ -1,68 +1,157 @@
 import { useNavigate, useParams, useLocation } from "react-router";
-import { useState } from "react";
-import { ArrowLeft, Star, Upload, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Star, X, CheckCircle, AlertCircle } from "lucide-react";
+import { orderAPI, reviewAPI } from "../../services/api";
 
 export function WriteReview() {
-  const { id } = useParams();
+  const { id } = useParams(); // order id
   const navigate = useNavigate();
   const location = useLocation();
 
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
 
-  const order = {
-    orderId: "GRF-2026-04-001",
-    service: "Desain Logo Profesional",
-    seller: "Design Studio",
-    amount: "Rp 225.000",
-    date: "18 Apr 2026",
-  };
+  useEffect(() => {
+    const fetchOrder = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const data = await orderAPI.getOrderById(Number(id));
+        setOrder(data);
+
+        // Cek apakah order sudah direview
+        if (data?.has_review || data?.review_id) {
+          setAlreadyReviewed(true);
+        }
+      } catch (err: any) {
+        setError('Gagal memuat data pesanan');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrder();
+  }, [id]);
 
   const handleBack = () => {
     const from = location.state?.from;
-
     if (from === 'order-detail') {
       navigate(-1);
-    } 
-    else if (from === 'profile-orders') {
+    } else if (from === 'profile-orders') {
       navigate('/profile/user', { state: { activeTab: 'orders' } });
-    } 
-    else if (from === 'dashboard') {
+    } else if (from === 'dashboard') {
       navigate(-1);
-    } 
-    else {
+    } else {
       navigate('/dashboard/user');
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) {
-      alert('Silakan berikan rating terlebih dahulu');
+      setError('Silakan berikan rating terlebih dahulu');
       return;
     }
     if (comment.length < 20) {
-      alert('Ulasan minimal 20 karakter');
+      setError('Ulasan minimal 20 karakter');
       return;
     }
 
-    alert('Ulasan berhasil dikirim! Terima kasih.');
-    
-    navigate('/profile/user', { state: { activeTab: 'orders' } });
-  };
-
-  const handleImageUpload = () => {
-    const dummyImage = "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=300";
-    if (images.length < 3) {
-      setImages([...images, dummyImage]);
+    try {
+      setSubmitting(true);
+      setError(null);
+      await reviewAPI.createReview({
+        order_id: Number(id),
+        rating,
+        comment,
+      });
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/profile/user', { state: { activeTab: 'orders' } });
+      }, 2000);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err.message || 'Gagal mengirim ulasan';
+      setError(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages(images.filter((_, i) => i !== index));
-  };
+  const formatRupiah = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount || 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-slate-600">Memuat data pesanan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+          <p className="text-slate-700 font-semibold">Pesanan tidak ditemukan</p>
+          <button onClick={handleBack} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg">
+            Kembali
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (order.status !== 'completed') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-sm mx-auto p-6">
+          <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
+          <p className="text-slate-700 font-semibold mb-2">Review belum bisa diberikan</p>
+          <p className="text-slate-500 text-sm mb-4">Ulasan hanya dapat diberikan setelah pesanan berstatus <strong>Selesai</strong>.</p>
+          <button onClick={handleBack} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+            Kembali
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (alreadyReviewed) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-sm mx-auto p-6">
+          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+          <p className="text-slate-700 font-semibold mb-2">Ulasan sudah diberikan</p>
+          <p className="text-slate-500 text-sm mb-4">Anda sudah memberikan ulasan untuk pesanan ini sebelumnya.</p>
+          <button onClick={handleBack} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+            Kembali
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-sm mx-auto p-6">
+          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Ulasan Terkirim!</h2>
+          <p className="text-slate-500">Terima kasih telah memberikan ulasan. Mengarahkan kembali...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
@@ -84,19 +173,29 @@ export function WriteReview() {
           <div className="bg-slate-50 rounded-xl p-6 mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-500 mb-1">Order {order.orderId}</p>
-                <h3 className="font-bold text-slate-800 mb-1">{order.service}</h3>
-                <p className="text-sm text-slate-600">Seller: {order.seller}</p>
+                <p className="text-sm text-slate-500 mb-1">Order GRF-{String(order.id).padStart(6, '0')}</p>
+                <h3 className="font-bold text-slate-800 mb-1">{order.title || order.service_title || 'Pesanan'}</h3>
+                <p className="text-sm text-slate-600">Seller: {order.seller_name || '-'}</p>
               </div>
               <div className="text-right">
-                <p className="font-bold text-blue-600">{order.amount}</p>
-                <p className="text-sm text-slate-500">{order.date}</p>
+                <p className="font-bold text-blue-600">{formatRupiah(order.price)}</p>
+                <p className="text-sm text-slate-500">
+                  {order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                </p>
               </div>
             </div>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
+              <X className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <span className="text-red-700 text-sm">{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Rating, Comment, Images, Tips */}
+            {/* Rating */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">
                 Berikan Rating <span className="text-red-500">*</span>
@@ -135,7 +234,7 @@ export function WriteReview() {
             {/* Comment Section */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">
-                Tulis Ulasan Anda
+                Tulis Ulasan Anda <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={comment}
@@ -144,46 +243,8 @@ export function WriteReview() {
                 className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
                 placeholder="Ceritakan pengalaman Anda dengan layanan ini..."
               />
-              <p className="text-sm text-slate-500 mt-2">
+              <p className={`text-sm mt-2 ${comment.length < 20 ? 'text-red-400' : 'text-green-500'}`}>
                 {comment.length} karakter (minimal 20 karakter)
-              </p>
-            </div>
-
-            {/* Images Section */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-3">
-                Tambahkan Foto (Opsional)
-              </label>
-              <div className="flex items-start space-x-4">
-                {images.map((img, idx) => (
-                  <div key={idx} className="relative">
-                    <img
-                      src={img}
-                      alt={`Upload ${idx + 1}`}
-                      className="w-24 h-24 rounded-lg object-cover border-2 border-slate-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(idx)}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-                {images.length < 3 && (
-                  <button
-                    type="button"
-                    onClick={handleImageUpload}
-                    className="w-24 h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                  >
-                    <Upload className="w-6 h-6 text-slate-400 mb-1" />
-                    <span className="text-xs text-slate-500">Upload</span>
-                  </button>
-                )}
-              </div>
-              <p className="text-sm text-slate-500 mt-2">
-                Maksimal 3 foto (Format: JPG, PNG)
               </p>
             </div>
 
@@ -203,16 +264,24 @@ export function WriteReview() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="flex-1 px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                disabled={submitting}
+                className="flex-1 px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors font-medium disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                disabled={rating === 0 || comment.length < 20}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-shadow font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={rating === 0 || comment.length < 20 || submitting}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-shadow font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                Kirim Ulasan
+                {submitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Mengirim...
+                  </>
+                ) : (
+                  'Kirim Ulasan'
+                )}
               </button>
             </div>
           </form>
