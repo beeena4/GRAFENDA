@@ -17,12 +17,11 @@
       "dest": "backend/app.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "/$1",
-      "continue": true
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
     },
     {
-      "src": "/(.*)",
+      "src": "/((?!api|assets).*)",
       "dest": "/index.html"
     }
   ]
