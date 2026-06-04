@@ -41,7 +41,7 @@ class ReviewController {
       // Create review
       const reviewId = await Review.create({
         order_id,
-        buyer_id: userId,
+        reviewer_id: userId,
         seller_id: order.seller_id,
         rating,
         comment
@@ -52,15 +52,20 @@ class ReviewController {
 
       // Notify seller
       await NotificationService.createAndSendNotification(
-        order.seller_id,
-        'review_received',
-        `You received a ${rating}-star review`,
-        { order_id, review_id: reviewId }
+        order.seller_user_id || order.seller_id,
+        {
+          title: 'Ulasan Baru Diterima',
+          message: `Anda menerima ulasan bintang ${rating} dari pembeli.`,
+          type: 'review',
+          related_id: reviewId
+        }
       );
 
       const review = await Review.findById(reviewId);
       sendSuccess(res, 'Review created successfully', review, 201);
     } catch (error) {
+      console.error('[ReviewController.createReview] ERROR:', error.message);
+      console.error('[ReviewController.createReview] STACK:', error.stack);
       sendError(res, error.message, 500);
     }
   }
@@ -120,7 +125,7 @@ class ReviewController {
       }
 
       // Check ownership
-      if (review.buyer_id !== userId) {
+      if (review.reviewer_id !== userId) {
         return sendError(res, 'Access denied', 403);
       }
 
@@ -149,7 +154,7 @@ class ReviewController {
       }
 
       // Check ownership
-      if (review.buyer_id !== userId) {
+      if (review.reviewer_id !== userId) {
         return sendError(res, 'Access denied', 403);
       }
 
@@ -172,7 +177,24 @@ class ReviewController {
 
       const stats = await Review.getSellerStats(seller_id);
 
-      sendSuccess(res, 'Seller stats retrieved successfully', stats);
+      // Format data agar sesuai dengan yang diharapkan frontend
+      const totalReviews = parseInt(stats.total_reviews) || 0;
+      const avgRating = parseFloat(stats.avg_rating) || 0;
+
+      const ratingDistribution = [5, 4, 3, 2, 1].map((stars) => {
+        const count = parseInt(stats[`${['', 'one', 'two', 'three', 'four', 'five'][stars]}_star`]) || 0;
+        return {
+          stars,
+          count,
+          percentage: totalReviews > 0 ? Math.round((count / totalReviews) * 100) : 0,
+        };
+      });
+
+      sendSuccess(res, 'Seller stats retrieved successfully', {
+        averageRating: avgRating,
+        totalReviews,
+        ratingDistribution,
+      });
     } catch (error) {
       sendError(res, error.message, 500);
     }

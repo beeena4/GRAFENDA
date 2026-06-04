@@ -73,6 +73,17 @@ class Review {
     return reviews[0];
   }
 
+  static async update(id, data) {
+    const { rating, comment } = data;
+    const sql = `UPDATE reviews SET rating = COALESCE(?, rating), comment = COALESCE(?, comment) WHERE id = ?`;
+    await query(sql, [rating, comment, id]);
+  }
+
+  static async delete(id) {
+    const sql = `DELETE FROM reviews WHERE id = ?`;
+    await query(sql, [id]);
+  }
+
   static async updateSellerStats(sellerId) {
     // Calculate new rating and review count
     const statsSql = `
@@ -106,6 +117,11 @@ class Review {
     `;
     const stats = await query(sql, [sellerId]);
     return stats[0];
+  }
+
+  // Alias untuk kompatibilitas dengan controller
+  static async getSellerStats(sellerId) {
+    return this.getSellerRatingStats(sellerId);
   }
 
   static async canReview(orderId, userId) {
